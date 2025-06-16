@@ -149,6 +149,8 @@ This project is licensed under the MIT License.
 - **Expo**: For React Native development platform
 - **React Native**: For cross-platform mobile framework
 
+<!-- Test commit to trigger CI/CD -->
+
 ---
 
 **Chef Jeff** - Your personal AI cooking assistant! 🧑‍🍳✨ 
