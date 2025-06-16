@@ -1,0 +1,54 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: chef-jeff-mobile/package-lock.json
+    
+    - name: Install Dependencies
+      working-directory: ./chef-jeff-mobile
+      run: npm ci
+    
+    - name: Run ESLint
+      working-directory: ./chef-jeff-mobile
+      run: npm run lint
+    
+    - name: Run TypeScript Check
+      working-directory: ./chef-jeff-mobile
+      run: npx tsc --noEmit
+    
+    - name: Install EAS CLI
+      run: npm install -g eas-cli
+    
+    - name: Setup Expo
+      working-directory: ./chef-jeff-mobile
+      run: |
+        npx expo install
+        npx expo prebuild
+    
+    - name: Build Android
+      working-directory: ./chef-jeff-mobile
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      run: eas build --platform android --non-interactive --no-wait
+    
+    - name: Build iOS
+      working-directory: ./chef-jeff-mobile
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      run: eas build --platform ios --non-interactive --no-wait 

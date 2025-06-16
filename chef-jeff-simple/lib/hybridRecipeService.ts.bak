@@ -1,0 +1,323 @@
+import { AIRecipeGenerator, AIRecipe } from './aiRecipeService'
+
+// Food API Integration Types
+interface SpoonacularRecipe {
+  id: number
+  title: string
+  image: string
+  readyInMinutes: number
+  servings: number
+  sourceUrl: string
+  nutrition?: {
+    calories: number
+    protein: string
+    carbs: string
+    fat: string
+  }
+}
+
+interface EdamamRecipe {
+  recipe: {
+    label: string
+    image: string
+    source: string
+    url: string
+    yield: number
+    ingredientLines: string[]
+    calories: number
+    totalTime: number
+    cuisineType: string[]
+    mealType: string[]
+    dishType: string[]
+    totalNutrients: any
+  }
+}
+
+export interface InstantSuggestion {
+  id: string
+  title: string
+  image: string
+  cookingTime: number
+  servings: number
+  difficulty: 'Easy' | 'Medium' | 'Hard'
+  cuisine: string
+  tags: string[]
+  source: 'spoonacular' | 'edamam' | 'themealdb'
+  isChefJeffEnhanced: boolean
+}
+
+export class HybridRecipeService {
+  private aiGenerator: AIRecipeGenerator
+  private spoonacularApiKey: string
+  private edamamApiKey: string
+  private edamamAppId: string
+
+  constructor() {
+    this.aiGenerator = new AIRecipeGenerator()
+    this.spoonacularApiKey = process.env.EXPO_PUBLIC_SPOONACULAR_API_KEY || ''
+    this.edamamApiKey = process.env.EXPO_PUBLIC_EDAMAM_API_KEY || ''
+    this.edamamAppId = process.env.EXPO_PUBLIC_EDAMAM_APP_ID || ''
+  }
+
+  /**
+   * Instant Recipe Suggestions - Returns within 2-3 seconds
+   * Perfect for immediate user feedback while AI generates in background
+   */
+  async getInstantSuggestions(
+    ingredients: string[],
+    maxResults: number = 6
+  ): Promise<InstantSuggestion[]> {
+    try {
+      const suggestions: InstantSuggestion[] = []
+      
+      // Query multiple APIs in parallel for speed
+      const [spoonacularResults, edamamResults] = await Promise.allSettled([
+        this.querySpoonacular(ingredients, Math.ceil(maxResults / 2)),
+        this.queryEdamam(ingredients, Math.ceil(maxResults / 2))
+      ])
+
+      // Process Spoonacular results
+      if (spoonacularResults.status === 'fulfilled') {
+        suggestions.push(...spoonacularResults.value)
+      }
+
+      // Process Edamam results  
+      if (edamamResults.status === 'fulfilled') {
+        suggestions.push(...edamamResults.value)
+      }
+
+      // Sort by relevance and return top results
+      return this.rankSuggestions(suggestions, ingredients).slice(0, maxResults)
+    } catch (error) {
+      console.error('Error getting instant suggestions:', error)
+      return this.getFallbackSuggestions(ingredients)
+    }
+  }
+
+  /**
+   * Chef Jeff Enhanced Recipe - Takes instant suggestion and adds AI creativity
+   */
+  async enhanceWithChefJeff(
+    suggestion: InstantSuggestion,
+    userPreferences?: any
+  ): Promise<AIRecipe> {
+    try {
+      // Get the base recipe details
+      const baseRecipe = await this.getRecipeDetails(suggestion)
+      
+      // Have Chef Jeff enhance it with his personality and creativity
+      const enhancementPrompt = `
+        Take this existing recipe and enhance it with Chef Jeff's signature style:
+        
+        Original Recipe: ${baseRecipe.title}
+        Ingredients: ${baseRecipe.ingredients.join(', ')}
+        Instructions: ${baseRecipe.instructions.join(' ')}
+        
+        Transform this into a Chef Jeff masterpiece by:
+        1. Adding his global spice expertise and travel stories
+        2. Suggesting creative variations or upgrades
+        3. Including his signature seasoning techniques
+        4. Adding personal cooking tips and tricks
+        5. Maintaining the core recipe but making it more exciting
+        
+        Keep the same basic ingredients but feel free to suggest optional enhancements.
+      `
+
+      return await this.aiGenerator.generateRecipe({
+        specificRequest: enhancementPrompt,
+        pantryIngredients: baseRecipe.ingredients
+      }, undefined)
+      
+    } catch (error) {
+      console.error('Error enhancing recipe with Chef Jeff:', error)
+      // Fallback to regular AI generation
+      return await this.aiGenerator.generateRecipe({
+        specificRequest: `Create a recipe inspired by: ${suggestion.title}`,
+        pantryIngredients: []
+      })
+    }
+  }
+
+  /**
+   * Complete Hybrid Experience - Instant + AI combo
+   */
+  async getHybridRecommendations(
+    ingredients: string[],
+    preferences?: any,
+    onInstantReady?: (suggestions: InstantSuggestion[]) => void,
+    onChefJeffReady?: (recipe: AIRecipe) => void
+  ): Promise<{
+    instantSuggestions: InstantSuggestion[]
+    chefJeffSpecial: AIRecipe
+    enhancedOptions: AIRecipe[]
+  }> {
+    // 1. Get instant suggestions first (2-3 seconds)
+    const instantSuggestions = await this.getInstantSuggestions(ingredients, 8)
+    onInstantReady?.(instantSuggestions)
+
+    // 2. Generate Chef Jeff's original creation in parallel
+    const chefJeffPromise = this.aiGenerator.generateRecipe({
+      pantryIngredients: ingredients
+    }, undefined)
+
+    // 3. Enhance top 2 instant suggestions with Chef Jeff's touch
+    const enhancementPromises = instantSuggestions
+      .slice(0, 2)
+      .map(suggestion => this.enhanceWithChefJeff(suggestion, preferences))
+
+    // Wait for everything to complete
+    const [chefJeffSpecial, ...enhancedOptions] = await Promise.all([
+      chefJeffPromise,
+      ...enhancementPromises
+    ])
+
+    onChefJeffReady?.(chefJeffSpecial)
+
+    return {
+      instantSuggestions,
+      chefJeffSpecial,
+      enhancedOptions
+    }
+  }
+
+  /**
+   * Ingredient Autocomplete - For real-time typing suggestions
+   */
+  async getIngredientSuggestions(query: string): Promise<string[]> {
+    if (!query.trim() || query.length < 2) return []
+
+    try {
+      const response = await fetch(
+        `https://api.spoonacular.com/food/ingredients/autocomplete?query=${encodeURIComponent(query)}&number=10&apiKey=${this.spoonacularApiKey}`
+      )
+      
+      if (!response.ok) return []
+      
+      const data = await response.json()
+      return data.map((item: any) => item.name)
+    } catch (error) {
+      console.error('Error getting ingredient suggestions:', error)
+      return []
+    }
+  }
+
+  // Private helper methods
+  private async querySpoonacular(
+    ingredients: string[], 
+    maxResults: number
+  ): Promise<InstantSuggestion[]> {
+    if (!this.spoonacularApiKey) return []
+
+    try {
+      const ingredientQuery = ingredients.join(',')
+      const response = await fetch(
+        `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${encodeURIComponent(ingredientQuery)}&number=${maxResults}&apiKey=${this.spoonacularApiKey}`
+      )
+
+      if (!response.ok) return []
+
+      const recipes = await response.json()
+      return recipes.map((recipe: any) => ({
+        id: `spoon_${recipe.id}`,
+        title: recipe.title,
+        image: recipe.image,
+        cookingTime: 30, // Default, could fetch details for actual time
+        servings: 4,
+        difficulty: 'Medium' as const,
+        cuisine: 'International',
+        tags: ['quick', 'easy'],
+        source: 'spoonacular' as const,
+        isChefJeffEnhanced: false
+      }))
+    } catch (error) {
+      console.error('Spoonacular API error:', error)
+      return []
+    }
+  }
+
+  private async queryEdamam(
+    ingredients: string[],
+    maxResults: number
+  ): Promise<InstantSuggestion[]> {
+    if (!this.edamamApiKey || !this.edamamAppId) return []
+
+    try {
+      const ingredientQuery = ingredients.join(' ')
+      const response = await fetch(
+        `https://api.edamam.com/search?q=${encodeURIComponent(ingredientQuery)}&app_id=${this.edamamAppId}&app_key=${this.edamamApiKey}&from=0&to=${maxResults}`
+      )
+
+      if (!response.ok) return []
+
+      const data = await response.json()
+      return data.hits.map((hit: EdamamRecipe, index: number) => ({
+        id: `edamam_${index}`,
+        title: hit.recipe.label,
+        image: hit.recipe.image,
+        cookingTime: hit.recipe.totalTime || 30,
+        servings: hit.recipe.yield || 4,
+        difficulty: this.determineDifficulty(hit.recipe.ingredientLines.length),
+        cuisine: hit.recipe.cuisineType?.[0] || 'International',
+        tags: [...(hit.recipe.mealType || []), ...(hit.recipe.dishType || [])],
+        source: 'edamam' as const,
+        isChefJeffEnhanced: false
+      }))
+    } catch (error) {
+      console.error('Edamam API error:', error)
+      return []
+    }
+  }
+
+  private determineDifficulty(ingredientCount: number): 'Easy' | 'Medium' | 'Hard' {
+    if (ingredientCount <= 5) return 'Easy'
+    if (ingredientCount <= 10) return 'Medium'
+    return 'Hard'
+  }
+
+  private rankSuggestions(
+    suggestions: InstantSuggestion[],
+    userIngredients: string[]
+  ): InstantSuggestion[] {
+    // Simple ranking algorithm - could be enhanced with ML
+    return suggestions.sort((a, b) => {
+      // Prefer shorter cooking times
+      const timeScore = (30 - a.cookingTime) - (30 - b.cookingTime)
+      
+      // Prefer easier recipes
+      const difficultyScore = a.difficulty === 'Easy' ? 10 : 
+                             a.difficulty === 'Medium' ? 5 : 0
+      const difficultyScoreB = b.difficulty === 'Easy' ? 10 : 
+                              b.difficulty === 'Medium' ? 5 : 0
+      
+      return (timeScore + (difficultyScore - difficultyScoreB))
+    })
+  }
+
+  private async getRecipeDetails(suggestion: InstantSuggestion) {
+    // This would fetch full recipe details from the respective API
+    // For now, return a simplified version
+    return {
+      title: suggestion.title,
+      ingredients: ['chicken', 'rice', 'vegetables'], // Would fetch from API
+      instructions: ['Cook ingredients', 'Season well', 'Serve hot'] // Would fetch from API
+    }
+  }
+
+  private getFallbackSuggestions(ingredients: string[]): InstantSuggestion[] {
+    // Fallback when APIs fail
+    return [
+      {
+        id: 'fallback_1',
+        title: `Simple ${ingredients[0] || 'Ingredient'} Dish`,
+        image: '',
+        cookingTime: 20,
+        servings: 2,
+        difficulty: 'Easy',
+        cuisine: 'Comfort',
+        tags: ['quick', 'simple'],
+        source: 'spoonacular',
+        isChefJeffEnhanced: false
+      }
+    ]
+  }
+} 

@@ -1,0 +1,378 @@
+import React, { useState, useEffect } from 'react'
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native'
+import { HybridRecipeService, InstantSuggestion } from '../lib/hybridRecipeService'
+import { AIRecipe } from '../lib/aiRecipeService'
+
+interface HybridRecipeSearchProps {
+  onRecipeSelect?: (recipe: AIRecipe | InstantSuggestion) => void
+}
+
+export default function HybridRecipeSearch({ onRecipeSelect }: HybridRecipeSearchProps) {
+  const [ingredients, setIngredients] = useState<string[]>([])
+  const [ingredientInput, setIngredientInput] = useState('')
+  const [ingredientSuggestions, setIngredientSuggestions] = useState<string[]>([])
+  const [instantSuggestions, setInstantSuggestions] = useState<InstantSuggestion[]>([])
+  const [chefJeffSpecial, setChefJeffSpecial] = useState<AIRecipe | null>(null)
+  const [enhancedOptions, setEnhancedOptions] = useState<AIRecipe[]>([])
+  const [loading, setLoading] = useState({
+    instant: false,
+    chefJeff: false,
+    enhanced: false
+  })
+
+  const hybridService = new HybridRecipeService()
+
+  // Real-time ingredient suggestions as user types
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (ingredientInput.length >= 2) {
+        const suggestions = await hybridService.getIngredientSuggestions(ingredientInput)
+        setIngredientSuggestions(suggestions)
+      } else {
+        setIngredientSuggestions([])
+      }
+    }, 300) // Debounce for 300ms
+
+    return () => clearTimeout(timer)
+  }, [ingredientInput])
+
+  const addIngredient = (ingredient: string) => {
+    if (!ingredients.includes(ingredient)) {
+      setIngredients([...ingredients, ingredient])
+      setIngredientInput('')
+      setIngredientSuggestions([])
+    }
+  }
+
+  const removeIngredient = (ingredient: string) => {
+    setIngredients(ingredients.filter(ing => ing !== ingredient))
+  }
+
+  const searchRecipes = async () => {
+    if (ingredients.length === 0) return
+
+    setLoading({ instant: true, chefJeff: true, enhanced: true })
+    setInstantSuggestions([])
+    setChefJeffSpecial(null)
+    setEnhancedOptions([])
+
+    try {
+      const result = await hybridService.getHybridRecommendations(
+        ingredients,
+        undefined,
+        // Callback for instant suggestions (fires first)
+        (suggestions) => {
+          setInstantSuggestions(suggestions)
+          setLoading(prev => ({ ...prev, instant: false }))
+        },
+        // Callback for Chef Jeff special (fires when AI completes)
+        (recipe) => {
+          setChefJeffSpecial(recipe)
+          setLoading(prev => ({ ...prev, chefJeff: false }))
+        }
+      )
+
+      // Enhanced options complete last
+      setEnhancedOptions(result.enhancedOptions)
+      setLoading(prev => ({ ...prev, enhanced: false }))
+
+    } catch (error) {
+      console.error('Error in hybrid search:', error)
+      setLoading({ instant: false, chefJeff: false, enhanced: false })
+    }
+  }
+
+  const enhanceRecipe = async (suggestion: InstantSuggestion) => {
+    try {
+      const enhanced = await hybridService.enhanceWithChefJeff(suggestion)
+      onRecipeSelect?.(enhanced)
+    } catch (error) {
+      console.error('Error enhancing recipe:', error)
+    }
+  }
+
+  return (
+    <ScrollView style={{ flex: 1, padding: 20, backgroundColor: '#f8f9fa' }}>
+      {/* Header */}
+      <View style={{ marginBottom: 20 }}>
+        <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#2c3e50', marginBottom: 8 }}>
+          🔥 Hybrid Recipe Discovery
+        </Text>
+        <Text style={{ fontSize: 16, color: '#7f8c8d', lineHeight: 22 }}>
+          Get instant suggestions + Chef Jeff's AI creativity
+        </Text>
+      </View>
+
+      {/* Ingredient Input with Autocomplete */}
+      <View style={{ marginBottom: 20 }}>
+        <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: '#34495e' }}>
+          Add Ingredients
+        </Text>
+        <TextInput
+          style={{
+            borderWidth: 1,
+            borderColor: '#bdc3c7',
+            borderRadius: 12,
+            padding: 15,
+            fontSize: 16,
+            backgroundColor: 'white',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3
+          }}
+          placeholder="Type an ingredient..."
+          value={ingredientInput}
+          onChangeText={setIngredientInput}
+        />
+        
+        {/* Autocomplete Suggestions */}
+        {ingredientSuggestions.length > 0 && (
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 8,
+            marginTop: 5,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3
+          }}>
+            {ingredientSuggestions.slice(0, 5).map((suggestion, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => addIngredient(suggestion)}
+                style={{
+                  padding: 12,
+                  borderBottomWidth: index < 4 ? 1 : 0,
+                  borderBottomColor: '#ecf0f1'
+                }}
+              >
+                <Text style={{ fontSize: 16, color: '#2c3e50' }}>{suggestion}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+
+      {/* Selected Ingredients */}
+      {ingredients.length > 0 && (
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 10, color: '#34495e' }}>
+            Your Ingredients ({ingredients.length})
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {ingredients.map((ingredient, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => removeIngredient(ingredient)}
+                style={{
+                  backgroundColor: '#3498db',
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  flexDirection: 'row',
+                  alignItems: 'center'
+                }}
+              >
+                <Text style={{ color: 'white', marginRight: 5 }}>{ingredient}</Text>
+                <Text style={{ color: 'white', fontWeight: 'bold' }}>×</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Search Button */}
+      <TouchableOpacity
+        onPress={searchRecipes}
+        disabled={ingredients.length === 0}
+        style={{
+          backgroundColor: ingredients.length > 0 ? '#e74c3c' : '#bdc3c7',
+          padding: 16,
+          borderRadius: 12,
+          alignItems: 'center',
+          marginBottom: 30
+        }}
+      >
+        <Text style={{
+          color: 'white',
+          fontSize: 18,
+          fontWeight: 'bold'
+        }}>
+          🔍 Find Recipes
+        </Text>
+      </TouchableOpacity>
+
+      {/* Instant Suggestions Section */}
+      {(loading.instant || instantSuggestions.length > 0) && (
+        <View style={{ marginBottom: 30 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: '#2c3e50' }}>
+            ⚡ Instant Suggestions
+          </Text>
+          {loading.instant ? (
+            <View style={{ alignItems: 'center', padding: 20 }}>
+              <ActivityIndicator size="large" color="#3498db" />
+              <Text style={{ marginTop: 10, color: '#7f8c8d' }}>Finding recipes...</Text>
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {instantSuggestions.map((suggestion) => (
+                <TouchableOpacity
+                  key={suggestion.id}
+                  onPress={() => onRecipeSelect?.(suggestion)}
+                  style={{
+                    width: 200,
+                    marginRight: 15,
+                    backgroundColor: 'white',
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 3
+                  }}
+                >
+                  {suggestion.image && (
+                    <Image
+                      source={{ uri: suggestion.image }}
+                      style={{ width: '100%', height: 120 }}
+                    />
+                  )}
+                  <View style={{ padding: 12 }}>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }} numberOfLines={2}>
+                      {suggestion.title}
+                    </Text>
+                    <Text style={{ color: '#7f8c8d', fontSize: 14, marginBottom: 8 }}>
+                      {suggestion.cookingTime} min • {suggestion.difficulty}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => enhanceRecipe(suggestion)}
+                      style={{
+                        backgroundColor: '#e74c3c',
+                        padding: 8,
+                        borderRadius: 6,
+                        alignItems: 'center'
+                      }}
+                    >
+                      <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+                        ✨ Enhance with Chef Jeff
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      )}
+
+      {/* Chef Jeff Special Section */}
+      {(loading.chefJeff || chefJeffSpecial) && (
+        <View style={{ marginBottom: 30 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: '#2c3e50' }}>
+            👨‍🍳 Chef Jeff's Special Creation
+          </Text>
+          {loading.chefJeff ? (
+            <View style={{ alignItems: 'center', padding: 30, backgroundColor: 'white', borderRadius: 12 }}>
+              <ActivityIndicator size="large" color="#e74c3c" />
+              <Text style={{ marginTop: 15, color: '#7f8c8d', textAlign: 'center' }}>
+                Chef Jeff is crafting something special with his global expertise...
+              </Text>
+            </View>
+          ) : chefJeffSpecial && (
+            <TouchableOpacity
+              onPress={() => onRecipeSelect?.(chefJeffSpecial)}
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 12,
+                padding: 20,
+                borderWidth: 2,
+                borderColor: '#e74c3c',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', flex: 1 }}>
+                  {chefJeffSpecial.title}
+                </Text>
+                <View style={{
+                  backgroundColor: '#e74c3c',
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 12
+                }}>
+                  <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>AI CREATED</Text>
+                </View>
+              </View>
+              <Text style={{ color: '#7f8c8d', marginBottom: 10, lineHeight: 20 }}>
+                {chefJeffSpecial.description}
+              </Text>
+              <Text style={{ color: '#34495e', fontWeight: '600' }}>
+                {chefJeffSpecial.cookingTime} min • {chefJeffSpecial.servings} servings • {chefJeffSpecial.difficulty}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Enhanced Options Section */}
+      {(loading.enhanced || enhancedOptions.length > 0) && (
+        <View style={{ marginBottom: 30 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: '#2c3e50' }}>
+            🌟 Chef Jeff Enhanced Classics
+          </Text>
+          {loading.enhanced ? (
+            <View style={{ alignItems: 'center', padding: 20 }}>
+              <ActivityIndicator size="large" color="#f39c12" />
+              <Text style={{ marginTop: 10, color: '#7f8c8d' }}>Enhancing recipes with AI magic...</Text>
+            </View>
+          ) : (
+            enhancedOptions.map((recipe, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => onRecipeSelect?.(recipe)}
+                style={{
+                  backgroundColor: 'white',
+                  borderRadius: 12,
+                  padding: 15,
+                  marginBottom: 12,
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#f39c12',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 16, fontWeight: 'bold', flex: 1 }}>
+                    {recipe.title}
+                  </Text>
+                  <View style={{
+                    backgroundColor: '#f39c12',
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderRadius: 8
+                  }}>
+                    <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>ENHANCED</Text>
+                  </View>
+                </View>
+                <Text style={{ color: '#7f8c8d', fontSize: 14 }} numberOfLines={2}>
+                  {recipe.description}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+      )}
+    </ScrollView>
+  )
+} 

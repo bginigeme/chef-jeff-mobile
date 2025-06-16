@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "chef-jeff-simple",
+    "slug": "chef-jeff-simple",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/chef-jeff-logo.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "chef-jeff-simple",
+    "splash": {
+      "image": "./assets/images/chef-jeff-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#EA580C"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.chefjeff.simple"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/chef-jeff-logo.png",
+        "backgroundColor": "#EA580C"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.chefjeff.simple"
+    },
+    "web": {
+      "favicon": "./assets/images/chef-jeff-logo.png"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
