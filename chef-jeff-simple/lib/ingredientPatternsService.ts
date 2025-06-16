@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { IngredientDatabase } from './ingredientDatabase'
+import { IngredientDatabase } from './ingredientDatabase.js'
 
 interface IngredientUsage {
   name: string

@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native'
-import { AIRecipe } from '../lib/aiRecipeService'
+import { AIRecipe } from '../lib/aiRecipeService.js'
 import { ChefHatIcon } from './ChefHatIcon'
 
 interface AIRecipeDetailModalProps {

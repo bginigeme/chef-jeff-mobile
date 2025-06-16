@@ -3,26 +3,25 @@ import { StyleSheet, Text, View, TouchableOpacity, TextInput, Alert, ActivityInd
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Linking from 'expo-linking'
-import { supabaseAuth, supabaseDb } from './lib/supabase'
-import { getProfile, createProfile, updatePantryItems, Profile } from './lib/database'
-import { aiRecipeGenerator, AIRecipe, RecipeRequest } from './lib/aiRecipeService'
+import { supabase } from './lib/supabase.js'
+import { getProfile, createProfile, updatePantryItems, Profile } from './lib/database.js'
+import { aiRecipeGenerator, AIRecipe, RecipeRequest } from './lib/aiRecipeService.js'
 import { AIRecipeCard } from './components/AIRecipeCard'
 import { AIRecipeDetailModal } from './components/AIRecipeDetailModal'
 import { SplashScreen as CustomSplashScreen } from './components/SplashScreen'
 import { GoogleSignInButton } from './components/GoogleSignInButton'
-import { GoogleAuthService } from './lib/googleAuth'
 import { RecipeCustomizationModal } from './components/RecipeCustomizationModal'
-import { RecipeHistoryService, RecipeHistoryItem } from './lib/recipeHistory'
+import { RecipeHistoryService, RecipeHistoryItem } from './lib/recipeHistory.js'
 import { PantryManager } from './components/PantryManager'
-import { UserPreferencesService } from './lib/userPreferences'
+import { UserPreferencesService } from './lib/userPreferences.js'
 import { ProfilePage } from './components/ProfilePage'
 import { WeeklyMealTracker } from './components/WeeklyMealTracker'
-import { WeeklyMealData } from './lib/mealTracker'
-import { fastRecipeGenerator } from './lib/fastRecipeGenerator'
-import { enhancedFastRecipeGenerator } from './lib/enhancedFastRecipeGenerator'
-import { recipeSyncService } from './lib/recipeSync'
-import { CachedRecipeService } from './lib/cachedRecipeService'
-import { IngredientPatternsService } from './lib/ingredientPatternsService'
+import { WeeklyMealData } from './lib/mealTracker.js'
+import { fastRecipeGenerator } from './lib/fastRecipeGenerator.js'
+import { enhancedFastRecipeGenerator } from './lib/enhancedFastRecipeGenerator.js'
+import { recipeSyncService } from './lib/recipeSync.js'
+import { CachedRecipeService } from './lib/cachedRecipeService.js'
+import { IngredientPatternsService } from './lib/ingredientPatternsService.js'
 import { ChefHatIcon } from './components/ChefHatIcon'
 
 // Development mode check
@@ -128,8 +127,8 @@ function MainApp() {
     checkStoredSession()
     
     // Force refresh local database to get updated image URLs
-    import('./lib/localRecipeDatabase').then(({ localRecipeDatabase }) => {
-      localRecipeDatabase.forceRefreshDatabase().catch(error => {
+    import('./lib/localRecipeDatabase.js').then(({ localRecipeDatabase }) => {
+      localRecipeDatabase.forceRefreshDatabase().catch((error: any) => {
         console.log('Failed to refresh local database:', error.message)
       })
     })
@@ -345,7 +344,7 @@ function MainApp() {
     if (!profile || profile.pantry_items.length === 0) return
     
     // Import ingredient validation
-    const { IngredientDatabase } = await import('./lib/ingredientDatabase')
+    const { IngredientDatabase } = await import('./lib/ingredientDatabase.js')
     
     // Validate pantry composition
     const validation = IngredientDatabase.validatePantryItems(profile.pantry_items)
@@ -530,7 +529,7 @@ function MainApp() {
     setLoading(true)
     
     try {
-      const data = await supabaseAuth.signInWithPassword(email, password)
+      const data = await supabase.signInWithPassword(email, password)
 
       if (data.access_token && data.user) {
         const sessionData = {
@@ -565,7 +564,7 @@ function MainApp() {
     setLoading(true)
     
     try {
-      const data = await supabaseAuth.signUp(email, password)
+      const data = await supabase.signUp(email, password)
       
       if (data.access_token && data.user) {
         // For successful sign up with immediate session
@@ -599,7 +598,7 @@ function MainApp() {
     if (!session) return
     
     try {
-      await supabaseAuth.signOut(session.access_token)
+      await supabase.signOut(session.access_token)
       setSession(null)
       setProfile(null)
       setRecipes({ pantryOnly: null, enhanced: null })
@@ -666,63 +665,6 @@ function MainApp() {
     } catch (error) {
       logError('Failed to update pantry', error)
     }
-  }
-
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true)
-    
-    try {
-      const result = await GoogleAuthService.signInWithGoogle()
-      
-      if (result.success && result.session) {
-        console.log('🎉 Google sign-in successful!')
-        const googleSession = result.session
-        
-        // Set the session from Supabase OAuth
-        setSession(googleSession)
-        await storeSession(googleSession)
-        
-        // Try to find existing profile
-        let existingProfile = null
-        try {
-          existingProfile = await getProfile(googleSession.user.id, googleSession.access_token)
-          console.log('👤 Found existing profile for Google user')
-        } catch (error) {
-          console.log('📝 No existing profile found, will create new one')
-        }
-        
-        if (existingProfile) {
-          // User has a profile, sign them in
-          setProfile(existingProfile)
-        } else {
-          // New Google user, show setup modal
-          const userData = googleSession.user
-          const fullName = userData.user_metadata?.full_name || userData.email?.split('@')[0] || ''
-          const [firstName, ...lastNameParts] = fullName.split(' ')
-          const lastName = lastNameParts.join(' ')
-          
-          setSetupForm({
-            firstName: firstName || '',
-            lastName: lastName || '',
-            pantryItems: ''
-          })
-          setShowSetupModal(true)
-        }
-      } else {
-        if (result.error && !result.error.includes('cancelled')) {
-          Alert.alert('Google Sign In Error', result.error)
-        }
-      }
-    } catch (error: any) {
-      logError('Google sign in error', error)
-      Alert.alert('Google Sign In Error', error.message)
-    }
-    
-    setGoogleLoading(false)
-  }
-
-  const handleCustomRecipeGeneration = (request: RecipeRequest) => {
-    generateAIRecipes(request)
   }
 
   const handleGenerateNewRecipe = () => {
@@ -794,7 +736,7 @@ function MainApp() {
     if (!profile || profile.pantry_items.length === 0) return
     
     // Import ingredient validation
-    const { IngredientDatabase } = await import('./lib/ingredientDatabase')
+    const { IngredientDatabase } = await import('./lib/ingredientDatabase.js')
     
     // Validate pantry composition
     const validation = IngredientDatabase.validatePantryItems(profile.pantry_items)
@@ -1522,7 +1464,7 @@ function MainApp() {
         <RecipeCustomizationModal
           visible={showCustomizationModal}
           onClose={() => setShowCustomizationModal(false)}
-          onGenerateRecipe={handleCustomRecipeGeneration}
+          onGenerateRecipe={generateAIRecipes}
           pantryIngredients={profile?.pantry_items || []}
         />
 
@@ -1614,7 +1556,7 @@ function MainApp() {
           
           {/* Google Sign In Button */}
           <GoogleSignInButton
-            onPress={handleGoogleSignIn}
+            onPress={() => Alert.alert('Google Sign In', 'Google sign-in is temporarily disabled')}
             loading={googleLoading}
             disabled={loading || googleLoading}
           />

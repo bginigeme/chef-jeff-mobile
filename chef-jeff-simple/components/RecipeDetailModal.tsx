@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Image } from 'react-native';
-import { Recipe } from '../lib/recipeService';
+import { Recipe } from '../lib/recipeService.js';
 
 interface RecipeDetailModalProps {
   recipe: Recipe | null;

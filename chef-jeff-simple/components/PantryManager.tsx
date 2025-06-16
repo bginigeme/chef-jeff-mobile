@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native'
-import { IngredientDatabase, IngredientInfo } from '../lib/ingredientDatabase'
-import { IngredientPatternsService } from '../lib/ingredientPatternsService'
+import { IngredientDatabase, IngredientInfo } from '../lib/ingredientDatabase.js'
+import { IngredientPatternsService } from '../lib/ingredientPatternsService.js'
 
 interface PantryManagerProps {
   pantryItems: string[]
