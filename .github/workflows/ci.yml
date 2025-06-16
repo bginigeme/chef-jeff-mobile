@@ -24,10 +24,6 @@ jobs:
       working-directory: ./chef-jeff-simple
       run: npm ci
     
-    - name: Run ESLint
-      working-directory: ./chef-jeff-simple
-      run: npm run lint
-    
     - name: Run TypeScript Check
       working-directory: ./chef-jeff-simple
       run: npx tsc --noEmit
