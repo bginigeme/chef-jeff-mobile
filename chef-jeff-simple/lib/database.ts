@@ -1,4 +1,4 @@
-import { supabaseDb } from './supabase'
+import { supabase } from './supabase'
 
 export interface Profile {
   id: string;
@@ -12,7 +12,7 @@ export interface Profile {
 
 // Get user profile
 export const getProfile = async (userId: string, accessToken?: string): Promise<Profile | null> => {
-  const { data, error } = await supabaseDb.from('profiles').select('*', accessToken)
+  const { data, error } = await supabase.from('profiles').select('*', accessToken)
 
   if (error) {
     console.error('Error fetching profile:', error);
@@ -34,7 +34,7 @@ export const createProfile = async (
   },
   accessToken?: string
 ): Promise<Profile | null> => {
-  const { data, error } = await supabaseDb.from('profiles').insert({
+  const { data, error } = await supabase.from('profiles').insert({
     id: userId,
     email,
     ...profileData,
@@ -55,7 +55,7 @@ export const updatePantryItems = async (
   pantryItems: string[],
   accessToken?: string
 ): Promise<Profile | null> => {
-  const { data, error } = await supabaseDb.from('profiles').update({
+  const { data, error } = await supabase.from('profiles').update({
     pantry_items: pantryItems,
     updated_at: new Date().toISOString(),
   }, `id=eq.${userId}`, accessToken);

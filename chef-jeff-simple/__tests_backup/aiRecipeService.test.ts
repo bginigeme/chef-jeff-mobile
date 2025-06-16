@@ -320,7 +320,7 @@ describe('AIRecipeGenerator Security & Functionality Evals', () => {
       const recipe = await generator.generateRecipeWithImage(
         { pantryIngredients: ['chicken'] },
         undefined,
-        true
+        'true'
       )
 
       expect(recipe).toBeDefined()
