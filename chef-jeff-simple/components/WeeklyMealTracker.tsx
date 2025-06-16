@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native'
-import { MealTrackerService, WeeklyMealData } from '../lib/mealTracker.js'
+import { MealTrackerService, WeeklyMealData } from '../lib/mealTracker'
 
 interface WeeklyMealTrackerProps {
   onMealAdded?: (newData: WeeklyMealData) => void
