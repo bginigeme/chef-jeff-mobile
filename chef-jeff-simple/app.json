@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "chef-jeff-simple",
+    "name": "Chef Jeff",
     "slug": "chef-jeff-simple",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,7 +15,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.chefjeff.simple"
+      "bundleIdentifier": "com.chefjeff.simple",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Chef Jeff needs access to your camera to take photos of your food and ingredients.",
+        "NSPhotoLibraryUsageDescription": "Chef Jeff needs access to your photos to select images of your food and ingredients.",
+        "NSLocationWhenInUseUsageDescription": "Chef Jeff uses your location to find nearby grocery stores and restaurants."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,13 +29,33 @@
         "backgroundColor": "#EA580C"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.chefjeff.simple"
+      "package": "com.chefjeff.simple",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/images/chef-jeff-logo.png"
     },
     "plugins": [
-      "expo-router"
-    ]
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/chef-jeff-logo.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#EA580C"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    }
   }
 }

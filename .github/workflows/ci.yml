@@ -18,37 +18,37 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: chef-jeff-mobile/package-lock.json
+        cache-dependency-path: chef-jeff-simple/package-lock.json
     
     - name: Install Dependencies
-      working-directory: ./chef-jeff-mobile
+      working-directory: ./chef-jeff-simple
       run: npm ci
     
     - name: Run ESLint
-      working-directory: ./chef-jeff-mobile
+      working-directory: ./chef-jeff-simple
       run: npm run lint
     
     - name: Run TypeScript Check
-      working-directory: ./chef-jeff-mobile
+      working-directory: ./chef-jeff-simple
       run: npx tsc --noEmit
     
     - name: Install EAS CLI
       run: npm install -g eas-cli
     
     - name: Setup Expo
-      working-directory: ./chef-jeff-mobile
+      working-directory: ./chef-jeff-simple
       run: |
         npx expo install
         npx expo prebuild
     
     - name: Build Android
-      working-directory: ./chef-jeff-mobile
+      working-directory: ./chef-jeff-simple
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       run: eas build --platform android --non-interactive --no-wait
     
     - name: Build iOS
-      working-directory: ./chef-jeff-mobile
+      working-directory: ./chef-jeff-simple
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       run: eas build --platform ios --non-interactive --no-wait 
