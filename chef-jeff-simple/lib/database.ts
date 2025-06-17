@@ -11,8 +11,8 @@ export interface Profile {
 }
 
 // Get user profile
-export const getProfile = async (userId: string, accessToken?: string): Promise<Profile | null> => {
-  const { data, error } = await supabase.from('profiles').select('*', accessToken)
+export const getProfile = async (userId: string): Promise<Profile | null> => {
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId)
 
   if (error) {
     console.error('Error fetching profile:', error);
@@ -20,7 +20,7 @@ export const getProfile = async (userId: string, accessToken?: string): Promise<
   }
 
   // Find the profile with matching id
-  const profile = data?.find((p: Profile) => p.id === userId);
+  const profile = data?.[0];
   return profile || null;
 };
 
@@ -31,15 +31,16 @@ export const createProfile = async (
   profileData: {
     first_name: string;
     last_name: string;
-  },
-  accessToken?: string
+  }
 ): Promise<Profile | null> => {
-  const { data, error } = await supabase.from('profiles').insert({
-    id: userId,
-    email,
-    ...profileData,
-    pantry_items: [],
-  }, accessToken);
+  const { data, error } = await supabase.from('profiles').insert([
+    {
+      id: userId,
+      email,
+      ...profileData,
+      pantry_items: [],
+    }
+  ]);
 
   if (error) {
     console.error('Error creating profile:', error);
@@ -52,13 +53,14 @@ export const createProfile = async (
 // Update pantry items
 export const updatePantryItems = async (
   userId: string,
-  pantryItems: string[],
-  accessToken?: string
+  pantryItems: string[]
 ): Promise<Profile | null> => {
-  const { data, error } = await supabase.from('profiles').update({
-    pantry_items: pantryItems,
-    updated_at: new Date().toISOString(),
-  }, `id=eq.${userId}`, accessToken);
+  const { data, error } = await supabase.from('profiles')
+    .update({
+      pantry_items: pantryItems,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
 
   if (error) {
     console.error('Error updating pantry items:', error);
