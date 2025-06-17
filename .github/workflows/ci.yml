@@ -24,6 +24,14 @@ jobs:
       working-directory: ./chef-jeff-simple
       run: npm ci
     
+    - name: Run Unit Tests
+      working-directory: ./chef-jeff-simple
+      run: npm test
+    
+    - name: Run Security Audit
+      working-directory: ./chef-jeff-simple
+      run: npm audit --audit-level=high
+    
     - name: Run TypeScript Check
       working-directory: ./chef-jeff-simple
       run: npx tsc --noEmit
