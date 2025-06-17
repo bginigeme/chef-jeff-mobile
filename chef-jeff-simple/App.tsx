@@ -242,7 +242,7 @@ function MainApp() {
         
         // Validate the session by trying to fetch the profile
         try {
-          const testProfile = await getProfile(parsedSession.user.id, parsedSession.access_token)
+          const testProfile = await getProfile(parsedSession.user.id)
           // If successful, the session is valid
           setSession(parsedSession)
         } catch (sessionError: any) {
@@ -306,7 +306,7 @@ function MainApp() {
     if (!session?.user) return
 
     try {
-      const userProfile = await getProfile(session.user.id, session.access_token)
+      const userProfile = await getProfile(session.user.id)
       if (userProfile) {
         setProfile(userProfile)
       } else if (showSetupIfMissing) {
@@ -623,7 +623,7 @@ function MainApp() {
       const newProfile = await createProfile(session.user.id, session.user.email!, {
         first_name: setupForm.firstName,
         last_name: setupForm.lastName
-      }, session.access_token)
+      })
 
       if (newProfile && setupForm.pantryItems) {
         const pantryArray = setupForm.pantryItems
@@ -631,7 +631,7 @@ function MainApp() {
           .map(item => item.trim())
           .filter(item => item.length > 0)
         
-        const updatedProfile = await updatePantryItems(session.user.id, pantryArray, session.access_token)
+        const updatedProfile = await updatePantryItems(session.user.id, pantryArray)
         setProfile(updatedProfile)
       } else {
         setProfile(newProfile)
@@ -653,7 +653,7 @@ function MainApp() {
     if (!session?.user || !profile) return
 
     try {
-      const updatedProfile = await updatePantryItems(session.user.id, newPantryItems, session.access_token)
+      const updatedProfile = await updatePantryItems(session.user.id, newPantryItems)
       if (updatedProfile) {
         // Record ingredient usage patterns for learning (when items are added)
         if (newPantryItems.length > profile.pantry_items.length) {
