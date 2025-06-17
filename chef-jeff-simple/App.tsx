@@ -23,6 +23,7 @@ import { recipeSyncService } from './lib/recipeSync'
 import { CachedRecipeService } from './lib/cachedRecipeService'
 import { IngredientPatternsService } from './lib/ingredientPatternsService'
 import { ChefHatIcon } from './components/ChefHatIcon'
+import { GoogleAuthService } from './lib/googleAuth'
 
 // Development mode check
 const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development'
@@ -1005,6 +1006,20 @@ function MainApp() {
     }
   }
 
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true)
+    try {
+      const result = await GoogleAuthService.signInWithGoogle()
+      if (!result.success && result.error && !result.error.includes('cancelled')) {
+        Alert.alert('Google Sign In Error', result.error)
+      }
+      // On success, Supabase will handle session
+    } catch (error: any) {
+      Alert.alert('Google Sign In Error', error.message)
+    }
+    setGoogleLoading(false)
+  }
+
   if (initialLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -1556,7 +1571,7 @@ function MainApp() {
           
           {/* Google Sign In Button */}
           <GoogleSignInButton
-            onPress={() => Alert.alert('Google Sign In', 'Google sign-in is temporarily disabled')}
+            onPress={handleGoogleSignIn}
             loading={googleLoading}
             disabled={loading || googleLoading}
           />

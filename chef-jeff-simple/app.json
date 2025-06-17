@@ -53,9 +53,13 @@
       ]
     ],
     "extra": {
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "227685fa-b46e-412d-aee6-e925e93cd3b6"
       }
-    }
+    },
+    "owner": "benngini"
   }
 }

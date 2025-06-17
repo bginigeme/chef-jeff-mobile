@@ -34,7 +34,8 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.2",
     "react-native-url-polyfill": "^2.0.0",
-    "react-native-web": "^0.20.0"
+    "react-native-web": "^0.20.0",
+    "expo-router": "^3.4.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -49,7 +50,11 @@
     "jest-expo": "~53.0.0",
     "ts-node": "^10.9.2",
     "typescript": "~5.8.3",
-    "eslint": "^8.57.0"
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0"
   },
   "jest": {
     "preset": "jest-expo",
