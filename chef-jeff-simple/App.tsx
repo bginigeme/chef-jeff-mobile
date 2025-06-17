@@ -530,14 +530,16 @@ function MainApp() {
     setLoading(true)
     
     try {
-      const data = await supabase.signInWithPassword(email, password)
-
-      if (data.access_token && data.user) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        throw error;
+      }
+      if (data && data.session && data.user) {
         const sessionData = {
-          access_token: data.access_token,
+          access_token: data.session.access_token,
           user: {
             id: data.user.id,
-            email: data.user.email,
+            email: data.user.email ?? '',
           }
         }
         setSession(sessionData)
@@ -565,15 +567,16 @@ function MainApp() {
     setLoading(true)
     
     try {
-      const data = await supabase.signUp(email, password)
-      
-      if (data.access_token && data.user) {
-        // For successful sign up with immediate session
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      if (error) {
+        throw error;
+      }
+      if (data && data.session && data.user) {
         const sessionData = {
-          access_token: data.access_token,
+          access_token: data.session.access_token,
           user: {
             id: data.user.id,
-            email: data.user.email,
+            email: data.user.email ?? '',
           }
         }
         setSession(sessionData)
@@ -599,7 +602,7 @@ function MainApp() {
     if (!session) return
     
     try {
-      await supabase.signOut(session.access_token)
+      await supabase.auth.signOut()
       setSession(null)
       setProfile(null)
       setRecipes({ pantryOnly: null, enhanced: null })
