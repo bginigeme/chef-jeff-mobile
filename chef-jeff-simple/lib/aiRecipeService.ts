@@ -663,6 +663,12 @@ Make it AMAZING, Chef Jeff! 🔥`
       recipeIngredients.push({ name: 'Black pepper', amount: 'to taste', unit: '' })
     }
     
+    // Add default ingredients if none are present
+    if (recipeIngredients.length === 0) {
+      recipeIngredients.push({ name: 'Salt', amount: 'to taste', unit: '' })
+      recipeIngredients.push({ name: 'Black pepper', amount: 'to taste', unit: '' })
+    }
+    
     // Create realistic instructions based on ingredients available
     const instructions = type === 'strict'
       ? safeIngredients.length === 1
