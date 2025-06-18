@@ -2123,6 +2123,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  errorContainer: {
+    flex: 1,
+    backgroundColor: '#EA580C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: 'white',
+    marginBottom: 20,
+    textAlign: 'center',
+    opacity: 0.9,
+  },
+  errorButton: {
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  errorButtonText: {
+    color: '#EA580C',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  toggleButton: {
+    width: '100%',
+    backgroundColor: 'transparent',
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  toggleButtonText: {
+    color: '#EA580C',
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
 })
 
 export default function App() {
