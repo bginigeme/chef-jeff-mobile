@@ -1272,47 +1272,7 @@ function MainApp() {
                     <Text style={styles.noRecipesText}>
                       Add ingredients to your pantry to get AI-generated recipe recommendations!
                     </Text>
-                    <View style={styles.generateButtonsRow}>
-                      <TouchableOpacity 
-                        style={[
-                          styles.generateButton, 
-                          styles.instantButton,
-                          (!profile || profile.pantry_items.length === 0) && styles.disabledButton
-                        ]}
-                        onPress={() => {
-                          console.log('🥄 Professional Recipes button pressed!')
-                          console.log('Profile:', profile ? 'exists' : 'missing')
-                          console.log('Pantry items:', profile?.pantry_items?.length || 0)
-                          console.log('Full pantry:', profile?.pantry_items)
-                          
-                          if (!profile) {
-                            console.log('❌ No profile found!')
-                            return
-                          }
-                          
-                          if (!profile.pantry_items || profile.pantry_items.length === 0) {
-                            console.log('❌ No pantry items found!')
-                            console.log('Please add ingredients to your pantry first')
-                            return
-                          }
-                          
-                          const now = Date.now()
-                          if (now - lastProfessionalButtonTap < 1000) {
-                            // Double tap detected - reset recently shown recipes
-                            setRecentlyShownRecipeIds([])
-                            console.log('🔄 Double-tap detected! Cleared recently shown recipes for maximum variety')
-                          }
-                          setLastProfessionalButtonTap(now)
-                          generateFastRecipes()
-                        }}
-                        // Temporarily remove disabled condition to test
-                        // disabled={!profile || profile.pantry_items.length === 0}
-                      >
-                        <Text style={styles.generateButtonText}>
-                          🥄 Browse
-                        </Text>
-                      </TouchableOpacity>
-                      
+                    <View style={[styles.generateButtonsRow, { justifyContent: 'center' }]}>
                       <TouchableOpacity 
                         style={[
                           styles.generateButton, 
@@ -1342,7 +1302,7 @@ function MainApp() {
                         // disabled={!profile || profile.pantry_items.length === 0}
                       >
                         <Text style={styles.generateButtonText}>
-                          Jeff Style
+                          Create Meal
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -1350,47 +1310,7 @@ function MainApp() {
                 )}
 
                 {Object.values(recipes).some(recipe => recipe !== null) && (
-                  <View style={styles.generateButtonsRow}>
-                    <TouchableOpacity 
-                      style={[
-                        styles.generateButton, 
-                        styles.instantButton,
-                        (!profile || profile.pantry_items.length === 0) && styles.disabledButton
-                      ]}
-                      onPress={() => {
-                        console.log('🥄 Professional Recipes button pressed!')
-                        console.log('Profile:', profile ? 'exists' : 'missing')
-                        console.log('Pantry items:', profile?.pantry_items?.length || 0)
-                        console.log('Full pantry:', profile?.pantry_items)
-                        
-                        if (!profile) {
-                          console.log('❌ No profile found!')
-                          return
-                        }
-                        
-                        if (!profile.pantry_items || profile.pantry_items.length === 0) {
-                          console.log('❌ No pantry items found!')
-                          console.log('Please add ingredients to your pantry first')
-                          return
-                        }
-                         
-                        const now = Date.now()
-                        if (now - lastProfessionalButtonTap < 1000) {
-                          // Double tap detected - reset recently shown recipes
-                          setRecentlyShownRecipeIds([])
-                          console.log('🔄 Double-tap detected! Cleared recently shown recipes for maximum variety')
-                        }
-                        setLastProfessionalButtonTap(now)
-                        generateFastRecipes()
-                      }}
-                      // Temporarily remove disabled condition to test
-                      // disabled={generatingRecipe || (!profile || profile.pantry_items.length === 0)}
-                    >
-                                              <Text style={styles.generateButtonText}>
-                          🥄 More
-                        </Text>
-                    </TouchableOpacity>
-                    
+                  <View style={[styles.generateButtonsRow, { justifyContent: 'center' }]}>
                     <TouchableOpacity 
                       style={[
                         styles.generateButton, 
@@ -1420,7 +1340,7 @@ function MainApp() {
                       // disabled={generatingRecipe || (!profile || profile.pantry_items.length === 0)}
                     >
                       <Text style={styles.generateButtonText}>
-                        ✨ More
+                        Create Meal
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1950,41 +1870,17 @@ const styles = StyleSheet.create({
     marginTop: 5,
     textAlign: 'center',
   },
-  generateButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    backgroundColor: '#EA580C',
-    borderRadius: 12,
+  generateButtonsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 15,
-    flex: 1,
-    marginHorizontal: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  generateButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+  instantButton: {
+    backgroundColor: '#F97316',
   },
-  toggleButton: {
-    width: '100%',
-    backgroundColor: 'transparent',
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  toggleButtonText: {
-    color: '#EA580C',
-    fontSize: 14,
-    fontWeight: '500',
-    textDecorationLine: 'underline',
+  aiButton: {
+    backgroundColor: '#EA580C',
   },
   divider: {
     flexDirection: 'row',
@@ -2206,47 +2102,24 @@ const styles = StyleSheet.create({
   tabIcon: {
     marginRight: 8,
   },
-  generateButtonsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 15,
-  },
-  instantButton: {
-    backgroundColor: '#F97316',
-  },
-  aiButton: {
-    backgroundColor: '#EA580C',
-  },
-  errorContainer: {
-    flex: 1,
-    backgroundColor: '#EA580C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: 'white',
-    marginBottom: 20,
-    textAlign: 'center',
-    opacity: 0.9,
-  },
-  errorButton: {
-    backgroundColor: 'white',
+  generateButton: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 18,
+    backgroundColor: '#EA580C',
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  errorButtonText: {
-    color: '#EA580C',
+  generateButtonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },
