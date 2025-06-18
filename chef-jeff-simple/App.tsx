@@ -1023,14 +1023,6 @@ function MainApp() {
     setGoogleLoading(false)
   }
 
-  useEffect(() => {
-    if (profile && session) {
-      aiRecipeGenerator.generateRecipe({ pantryIngredients: ['salt'] })
-        .then(() => console.log('Pre-warm complete'))
-        .catch(() => {});
-    }
-  }, [profile, session]);
-
   if (initialLoading) {
     return (
       <View style={styles.loadingContainer}>

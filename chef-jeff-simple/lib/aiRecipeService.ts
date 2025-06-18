@@ -2,13 +2,33 @@ import OpenAI from 'openai'
 import { UserPreferencesService } from './userPreferences'
 import { RecipeHistoryService } from './recipeHistory'
 import { IngredientDatabase } from './ingredientDatabase'
+import Constants from 'expo-constants'
 
 // Development mode check
 const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development'
 
-// You'll need to add your OpenAI API key to your environment variables
+// Get API key from environment variables or constants
+const getOpenAIKey = () => {
+  // Try expo-constants first (for production builds)
+  if (Constants.expoConfig?.extra?.openaiApiKey) {
+    return Constants.expoConfig.extra.openaiApiKey
+  }
+  
+  // Fallback to process.env (for development)
+  if (process.env.EXPO_PUBLIC_OPENAI_API_KEY) {
+    return process.env.EXPO_PUBLIC_OPENAI_API_KEY
+  }
+  
+  // Final fallback for development
+  if (isDevelopment) {
+    return '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'
+  }
+  
+  throw new Error('OpenAI API key not found. Please set EXPO_PUBLIC_OPENAI_API_KEY in your environment or configure it in app.json')
+}
+
 const openai = new OpenAI({
-  apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY, // Make sure to add this to your .env file
+  apiKey: getOpenAIKey(),
 })
 
 export interface AIRecipe {
@@ -119,11 +139,6 @@ export class AIRecipeGenerator {
     imagePrompt?: string
   }> {
     try {
-      // Check if API key is available
-      if (!process.env.EXPO_PUBLIC_OPENAI_API_KEY) {
-        return { imagePrompt: this.createImagePrompt(recipe) }
-      }
-
       const imagePrompt = this.createImagePrompt(recipe)
       console.log('🎨 Generating recipe image...')
       
@@ -200,12 +215,6 @@ export class AIRecipeGenerator {
   // Placeholder for other methods - will add in next chunk
   async generateSingleRecipe(request: RecipeRequest, type: 'strict' | 'enhanced', userId?: string): Promise<AIRecipe> {
     try {
-      // Check if API key is available first
-      if (!process.env.EXPO_PUBLIC_OPENAI_API_KEY) {
-        console.log('ℹ️ Using local recipe generation (no API key)')
-        return this.getFallbackRecipe(request, type, `Chef Jeff's ${type === 'strict' ? 'Pantry' : 'Enhanced'} Recipe`)
-      }
-
       // Debug logging for pantry-only recipes
       if (type === 'strict') {
         console.log('🥄 Generating pantry-only recipe...')
