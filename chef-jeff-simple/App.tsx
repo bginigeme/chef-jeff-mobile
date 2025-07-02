@@ -1316,46 +1316,6 @@ function MainApp() {
                       <TouchableOpacity 
                         style={[
                           styles.generateButton, 
-                          styles.instantButton,
-                          (!profile || profile.pantry_items.length === 0) && styles.disabledButton
-                        ]}
-                        onPress={() => {
-                          console.log('🥄 Professional Recipes button pressed!')
-                          console.log('Profile:', profile ? 'exists' : 'missing')
-                          console.log('Pantry items:', profile?.pantry_items?.length || 0)
-                          console.log('Full pantry:', profile?.pantry_items)
-                          
-                          if (!profile) {
-                            console.log('❌ No profile found!')
-                            return
-                          }
-                          
-                          if (!profile.pantry_items || profile.pantry_items.length === 0) {
-                            console.log('❌ No pantry items found!')
-                            console.log('Please add ingredients to your pantry first')
-                            return
-                          }
-                          
-                          const now = Date.now()
-                          if (now - lastProfessionalButtonTap < 1000) {
-                            // Double tap detected - reset recently shown recipes
-                            setRecentlyShownRecipeIds([])
-                            console.log('🔄 Double-tap detected! Cleared recently shown recipes for maximum variety')
-                          }
-                          setLastProfessionalButtonTap(now)
-                          generateFastRecipes()
-                        }}
-                        // Temporarily remove disabled condition to test
-                        // disabled={!profile || profile.pantry_items.length === 0}
-                      >
-                        <Text style={styles.generateButtonText}>
-                          🥄 Browse
-                        </Text>
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity 
-                        style={[
-                          styles.generateButton, 
                           styles.aiButton,
                           (!profile || profile.pantry_items.length === 0) && styles.disabledButton
                         ]}
@@ -1382,7 +1342,7 @@ function MainApp() {
                         // disabled={!profile || profile.pantry_items.length === 0}
                       >
                         <Text style={styles.generateButtonText}>
-                          Jeff Style
+                          Create Meal
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -1391,46 +1351,6 @@ function MainApp() {
 
                 {Object.values(recipes).some(recipe => recipe !== null) && (
                   <View style={styles.generateButtonsRow}>
-                    <TouchableOpacity 
-                      style={[
-                        styles.generateButton, 
-                        styles.instantButton,
-                        (!profile || profile.pantry_items.length === 0) && styles.disabledButton
-                      ]}
-                      onPress={() => {
-                        console.log('🥄 Professional Recipes button pressed!')
-                        console.log('Profile:', profile ? 'exists' : 'missing')
-                        console.log('Pantry items:', profile?.pantry_items?.length || 0)
-                        console.log('Full pantry:', profile?.pantry_items)
-                        
-                        if (!profile) {
-                          console.log('❌ No profile found!')
-                          return
-                        }
-                        
-                        if (!profile.pantry_items || profile.pantry_items.length === 0) {
-                          console.log('❌ No pantry items found!')
-                          console.log('Please add ingredients to your pantry first')
-                          return
-                        }
-                         
-                        const now = Date.now()
-                        if (now - lastProfessionalButtonTap < 1000) {
-                          // Double tap detected - reset recently shown recipes
-                          setRecentlyShownRecipeIds([])
-                          console.log('🔄 Double-tap detected! Cleared recently shown recipes for maximum variety')
-                        }
-                        setLastProfessionalButtonTap(now)
-                        generateFastRecipes()
-                      }}
-                      // Temporarily remove disabled condition to test
-                      // disabled={generatingRecipe || (!profile || profile.pantry_items.length === 0)}
-                    >
-                                              <Text style={styles.generateButtonText}>
-                          🥄 More
-                        </Text>
-                    </TouchableOpacity>
-                    
                     <TouchableOpacity 
                       style={[
                         styles.generateButton, 
@@ -1460,7 +1380,7 @@ function MainApp() {
                       // disabled={generatingRecipe || (!profile || profile.pantry_items.length === 0)}
                     >
                       <Text style={styles.generateButtonText}>
-                        ✨ More
+                        Create Meal
                       </Text>
                     </TouchableOpacity>
                   </View>
