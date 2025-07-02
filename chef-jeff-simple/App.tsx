@@ -1268,44 +1268,39 @@ function MainApp() {
                 ) : null}
 
                 {Object.values(recipes).every(recipe => recipe === null) && !generatingRecipe && (
-                  <View style={styles.noRecipesContainer}>
-                    <Text style={styles.noRecipesText}>
-                      Add ingredients to your pantry to get AI-generated recipe recommendations!
-                    </Text>
-                    <View style={[styles.generateButtonsRow, { justifyContent: 'center' }]}>
-                      <TouchableOpacity 
-                        style={[
-                          styles.generateButton, 
-                          styles.aiButton,
-                          (!profile || profile.pantry_items.length === 0) && styles.disabledButton
-                        ]}
-                        onPress={() => {
-                          console.log('✨ Chef Jeff AI button pressed!')
-                          console.log('Profile:', profile ? 'exists' : 'missing')
-                          console.log('Pantry items:', profile?.pantry_items?.length || 0)
-                          console.log('Full pantry:', profile?.pantry_items)
-                          
-                          if (!profile) {
-                            console.log('❌ No profile found!')
-                            return
-                          }
-                          
-                          if (!profile.pantry_items || profile.pantry_items.length === 0) {
-                            console.log('❌ No pantry items found!')
-                            console.log('Please add ingredients to your pantry first')
-                            return
-                          }
-                          
-                          generateAIRecipes()
-                        }}
-                        // Temporarily remove disabled condition to test
-                        // disabled={!profile || profile.pantry_items.length === 0}
-                      >
-                        <Text style={styles.generateButtonText}>
-                          Create Meal
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                  <View style={[styles.generateButtonsRow, { justifyContent: 'center' }]}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.generateButton, 
+                        styles.aiButton,
+                        (!profile || profile.pantry_items.length === 0) && styles.disabledButton
+                      ]}
+                      onPress={() => {
+                        console.log('✨ Chef Jeff AI button pressed!')
+                        console.log('Profile:', profile ? 'exists' : 'missing')
+                        console.log('Pantry items:', profile?.pantry_items?.length || 0)
+                        console.log('Full pantry:', profile?.pantry_items)
+                        
+                        if (!profile) {
+                          console.log('❌ No profile found!')
+                          return
+                        }
+                        
+                        if (!profile.pantry_items || profile.pantry_items.length === 0) {
+                          console.log('❌ No pantry items found!')
+                          console.log('Please add ingredients to your pantry first')
+                          return
+                        }
+                        
+                        generateAIRecipes()
+                      }}
+                      // Temporarily remove disabled condition to test
+                      // disabled={!profile || profile.pantry_items.length === 0}
+                    >
+                      <Text style={styles.generateButtonText}>
+                        Create Meal
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 )}
 

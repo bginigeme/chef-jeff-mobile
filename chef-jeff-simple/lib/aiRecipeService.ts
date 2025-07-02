@@ -189,7 +189,7 @@ export class AIRecipeGenerator {
       styleDescriptor = ', incredibly savory and appetizing, perfectly seasoned, rich golden-brown colors'
     }
     
-    return `A beautifully plated, INCREDIBLY SAVORY dish of ${title?.toLowerCase() || 'delicious savory food'}${cuisineStyle}, featuring ${mainIngredients}, professional food photography, natural lighting, elegant presentation${styleDescriptor}, high quality, restaurant-style plating, white or neutral background, mouth-watering and irresistible, golden-brown searing marks, rich savory colors, steam rising, looks so delicious it makes you salivate instantly`
+    return `A beautifully plated, ultra-realistic, high-resolution close-up photo of ${title?.toLowerCase() || 'delicious savory food'}${cuisineStyle}, featuring ${mainIngredients}. Professional food photography, shot with a DSLR camera, shallow depth of field, soft natural lighting, elegant presentation${styleDescriptor}, high quality, restaurant-style plating, white or neutral background. Perfectly cooked, fresh ingredients, appetizing textures, vibrant colors, golden-brown searing marks, rich savory colors, steam rising, mouth-watering and irresistible. No text, no hands, no utensils, no logos, no overlays. In the style of Bon Appétit magazine.`
   }
 
   // Recipe generation with images
