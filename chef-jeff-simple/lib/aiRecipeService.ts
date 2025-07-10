@@ -3,6 +3,7 @@ import { UserPreferencesService } from './userPreferences'
 import { RecipeHistoryService } from './recipeHistory'
 import { IngredientDatabase } from './ingredientDatabase'
 import Constants from 'expo-constants'
+import { supabase } from './supabase'
 
 // Development mode check
 const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development'
@@ -21,7 +22,7 @@ const getOpenAIKey = () => {
   
   // Final fallback for development
   if (isDevelopment) {
-    return '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'
+    throw new Error('OpenAI API key not found. Please set EXPO_PUBLIC_OPENAI_API_KEY in your environment or configure it in app.json')
   }
   
   throw new Error('OpenAI API key not found. Please set EXPO_PUBLIC_OPENAI_API_KEY in your environment or configure it in app.json')
@@ -133,14 +134,32 @@ export class AIRecipeGenerator {
     }
   }
 
+  private makeSafeFilename(title: string, mimeType: string) {
+    const ext = mimeType === 'image/png' ? 'png' : 'jpeg';
+    return (
+      (title || 'recipe')
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9_-]/g, '') +
+      '_' +
+      Date.now() +
+      '.' + ext
+    );
+  }
+
   // Image generation methods
   private async generateRecipeImage(recipe: Partial<AIRecipe>): Promise<{
     imageUrl?: string
     imagePrompt?: string
   }> {
     try {
-      const imagePrompt = this.createImagePrompt(recipe)
-      console.log('🎨 Generating recipe image...')
+      if (!process.env.EXPO_PUBLIC_OPENAI_API_KEY) {
+        return { imagePrompt: this.createImagePrompt(recipe) }
+      }
+
+      const imagePrompt = this.createImagePrompt(recipe);
+      console.log('Image prompt:', imagePrompt);
+      console.log('🎨 Generating recipe image...');
       
       const response = await openai.images.generate({
         model: "dall-e-3",
@@ -149,26 +168,23 @@ export class AIRecipeGenerator {
         size: "1024x1024",
         quality: "standard",
         style: "natural"
-      })
+      });
 
-      const imageUrl = response.data?.[0]?.url
-      
+      const imageUrl = response.data?.[0]?.url;
+      console.log('🔗 OpenAI image URL:', imageUrl);
       if (imageUrl) {
-        console.log('✅ Recipe image generated!')
-        return { imageUrl, imagePrompt }
+        // Use OpenAI image URL directly for now (skip Supabase upload)
+        return { imageUrl, imagePrompt };
       } else {
-        return { imagePrompt }
+        return { imagePrompt };
       }
-      
     } catch (error: any) {
-      // Silently handle common API issues
       if (error.message?.includes('billing') || error.message?.includes('quota')) {
-        console.log('💳 Image generation unavailable - continuing without images')
+        console.log('💳 Image generation unavailable - continuing without images');
       } else {
-        this.logError('Image generation failed', error, true)
+        this.logError('Image generation failed', error, true);
       }
-      
-      return { imagePrompt: this.createImagePrompt(recipe) }
+      return { imagePrompt: this.createImagePrompt(recipe) };
     }
   }
 

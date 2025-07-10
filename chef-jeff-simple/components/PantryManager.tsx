@@ -45,14 +45,21 @@ export const PantryManager: React.FC<PantryManagerProps> = ({
   }
 
   const addItemInternal = async (itemToAdd?: string) => {
+    console.log('🔍 addItemInternal called with:', itemToAdd || 'newItem')
+    console.log('🔍 Current newItem state:', newItem)
+    
     const ingredient = itemToAdd || newItem.trim()
+    console.log('🔍 Ingredient to add:', ingredient)
+    
     if (!ingredient) {
+      console.log('❌ No ingredient provided, showing alert')
       Alert.alert('Error', 'Please enter an ingredient')
       return
     }
     
     // Check if item already exists
     if (pantryItems.some(item => item.toLowerCase() === ingredient.toLowerCase())) {
+      console.log('❌ Item already exists:', ingredient)
       Alert.alert('Already Added', `${ingredient} is already in your pantry`)
       setNewItem('')
       setSuggestions([])
@@ -62,14 +69,20 @@ export const PantryManager: React.FC<PantryManagerProps> = ({
     // Try to find ingredient in database for smart naming
     const foundIngredient = IngredientDatabase.findIngredient(ingredient)
     const finalName = foundIngredient ? foundIngredient.name : ingredient
+    console.log('🔍 Final ingredient name:', finalName)
     
     // Add new item
     const updatedItems = [...pantryItems, finalName]
+    console.log('🔍 Updated pantry items:', updatedItems)
+    console.log('🔍 Calling onUpdatePantry with:', updatedItems)
+    
     onUpdatePantry(updatedItems)
+    console.log('✅ onUpdatePantry called successfully')
     
     // Record ingredient usage pattern
     try {
       await IngredientPatternsService.recordIngredientUsage([finalName])
+      console.log('✅ Ingredient usage recorded')
     } catch (error) {
       console.log('Could not record ingredient usage:', error)
     }
@@ -80,6 +93,7 @@ export const PantryManager: React.FC<PantryManagerProps> = ({
     
     // Show validation after adding items
     setShowValidation(true)
+    console.log('✅ addItemInternal completed successfully')
   }
 
   const addItem = () => addItemInternal()
@@ -96,9 +110,19 @@ export const PantryManager: React.FC<PantryManagerProps> = ({
   }
 
   const removeItem = (indexToRemove: number) => {
+    console.log('🔍 removeItem called with index:', indexToRemove)
+    console.log('🔍 Current pantry items:', pantryItems)
+    console.log('🔍 Item to remove:', pantryItems[indexToRemove])
+    
     const updatedItems = pantryItems.filter((_, index) => index !== indexToRemove)
+    console.log('🔍 Updated pantry items after removal:', updatedItems)
+    console.log('🔍 Calling onUpdatePantry with:', updatedItems)
+    
     onUpdatePantry(updatedItems)
+    console.log('✅ onUpdatePantry called successfully for removal')
+    
     setShowValidation(true)
+    console.log('✅ removeItem completed successfully')
   }
 
   // Get pantry validation info
@@ -154,7 +178,14 @@ export const PantryManager: React.FC<PantryManagerProps> = ({
               onSubmitEditing={addItem}
               returnKeyType="done"
             />
-            <TouchableOpacity style={styles.confirmButton} onPress={addItem}>
+            <TouchableOpacity 
+              style={styles.confirmButton} 
+              onPress={() => {
+                console.log('🔍 Add button pressed!')
+                console.log('🔍 Current newItem:', newItem)
+                addItem()
+              }}
+            >
               <Text style={styles.confirmButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
@@ -220,7 +251,10 @@ export const PantryManager: React.FC<PantryManagerProps> = ({
                 <TouchableOpacity
                   key={index}
                   style={[styles.quickSuggestionChip, getQuickSuggestionStyle(suggestion.type)]}
-                  onPress={() => addItemInternal(suggestion.name)}
+                  onPress={() => {
+                    console.log('🔍 Quick suggestion pressed:', suggestion.name)
+                    addItemInternal(suggestion.name)
+                  }}
                 >
                   <Text style={styles.quickSuggestionEmoji}>{categoryInfo.emoji}</Text>
                   <View style={styles.quickSuggestionTextContainer}>
@@ -258,7 +292,11 @@ export const PantryManager: React.FC<PantryManagerProps> = ({
                   <Text style={styles.pantryChipText}>{item}</Text>
                   <TouchableOpacity 
                     style={styles.removeButton}
-                    onPress={() => removeItem(index)}
+                    onPress={() => {
+                      console.log('🔍 Remove button pressed for index:', index)
+                      console.log('🔍 Item to remove:', item)
+                      removeItem(index)
+                    }}
                   >
                     <Text style={styles.removeButtonText}>✕</Text>
                   </TouchableOpacity>
@@ -286,7 +324,9 @@ export const PantryManager: React.FC<PantryManagerProps> = ({
                   key={index}
                   style={styles.suggestionChip}
                   onPress={() => {
+                    console.log('🔍 Quick add suggestion pressed:', item)
                     const updatedItems = [...pantryItems, item]
+                    console.log('🔍 Updated items for quick add:', updatedItems)
                     onUpdatePantry(updatedItems)
                   }}
                 >

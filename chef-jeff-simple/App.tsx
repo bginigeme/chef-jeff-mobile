@@ -189,7 +189,7 @@ function MainApp() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqcHNxYXZhdWR3eXBoanZ0d2R0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1NDU4MjEsImV4cCI6MjA2NDEyMTgyMX0.WmVxbZM7cxRQr4ey3XyTUvyLt1_N_wJw-GBcnylzEqs',
+          'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
           'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
@@ -653,21 +653,16 @@ function MainApp() {
     if (!session?.user || !profile) return
 
     try {
-      const updatedProfile = await updatePantryItems(session.user.id, newPantryItems)
+      console.log('Updating pantry with:', newPantryItems);
+      const updatedProfile = await updatePantryItems(session.user.id, newPantryItems);
+      console.log('Updated profile from backend:', updatedProfile);
       if (updatedProfile) {
-        // Record ingredient usage patterns for learning (when items are added)
-        if (newPantryItems.length > profile.pantry_items.length) {
-          try {
-            await IngredientPatternsService.recordIngredientUsage(newPantryItems)
-          } catch (patternError) {
-            console.log('Could not record ingredient patterns:', patternError)
-          }
-        }
-        
-        setProfile(updatedProfile)
+        setProfile(updatedProfile);
+      } else {
+        console.log('No updated profile returned from backend.');
       }
     } catch (error) {
-      logError('Failed to update pantry', error)
+      logError('Failed to update pantry', error);
     }
   }
 
@@ -983,7 +978,7 @@ function MainApp() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqcHNxYXZhdWR3eXBoanZ0d2R0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1NDU4MjEsImV4cCI6MjA2NDEyMTgyMX0.WmVxbZM7cxRQr4ey3XyTUvyLt1_N_wJw-GBcnylzEqs',
+          'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
           email: resetEmail,
@@ -1488,16 +1483,11 @@ function MainApp() {
           </Text>
           
           {/* Google Sign In Button */}
-          <GoogleSignInButton
-            onPress={handleGoogleSignIn}
-            loading={googleLoading}
-            disabled={loading || googleLoading}
-          />
+          {/* <GoogleSignInButton /> */}
           
           {/* Divider */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Or continue with email</Text>
             <View style={styles.dividerLine} />
           </View>
       

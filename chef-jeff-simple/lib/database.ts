@@ -55,19 +55,52 @@ export const updatePantryItems = async (
   userId: string,
   pantryItems: string[]
 ): Promise<Profile | null> => {
+  console.log('🔍 updatePantryItems called with:')
+  console.log('  - userId:', userId)
+  console.log('  - pantryItems:', pantryItems)
+  
+  // First, check if the profile exists
+  const { data: existingProfile, error: selectError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+    
+  console.log('🔍 Existing profile check:')
+  console.log('  - existingProfile:', existingProfile)
+  console.log('  - selectError:', selectError)
+  
+  if (selectError) {
+    console.error('❌ Error checking existing profile:', selectError);
+    throw selectError;
+  }
+  
+  if (!existingProfile) {
+    console.error('❌ No profile found for user:', userId);
+    throw new Error('Profile not found');
+  }
+  
+  // Now try the update
   const { data, error } = await supabase.from('profiles')
     .update({
       pantry_items: pantryItems,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', userId);
+    .eq('id', userId)
+    .select(); // Add .select() to return the updated data
+
+  console.log('🔍 Supabase update response:')
+  console.log('  - data:', data)
+  console.log('  - error:', error)
 
   if (error) {
-    console.error('Error updating pantry items:', error);
+    console.error('❌ Error updating pantry items:', error);
     throw error;
   }
 
-  return data?.[0] || null;
+  const result = data?.[0] || null;
+  console.log('🔍 Returning profile:', result)
+  return result;
 }; 
  
  

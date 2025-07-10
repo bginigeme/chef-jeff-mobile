@@ -1,7 +1,7 @@
 // Spoonacular API service
 // Get your free API key at: https://spoonacular.com/food-api
 
-const SPOONACULAR_API_KEY = '0d43e38d070141639d9aba12f0798744'; // Replace with your API key
+const SPOONACULAR_API_KEY = process.env.EXPO_PUBLIC_SPOONACULAR_API_KEY;
 const BASE_URL = 'https://api.spoonacular.com/recipes';
 
 export interface Recipe {
