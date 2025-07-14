@@ -2,7 +2,7 @@
   "expo": {
     "name": "Chef Jeff",
     "slug": "chef-jeff-simple",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/chef-jeff-logo.png",
     "userInterfaceStyle": "light",
@@ -14,9 +14,9 @@
       "backgroundColor": "#EA580C"
     },
     "ios": {
-      "supportsTablet": true,
       "bundleIdentifier": "com.chefjeff.simple",
-      "buildNumber": "1",
+      "buildNumber": "19",
+      "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Chef Jeff needs access to your camera to take photos of your food and ingredients.",
         "NSPhotoLibraryUsageDescription": "Chef Jeff needs access to your photos to select images of your food and ingredients.",
