@@ -3,27 +3,27 @@ import { StyleSheet, Text, View, TouchableOpacity, TextInput, Alert, ActivityInd
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Linking from 'expo-linking'
-import { supabase } from './lib/supabase.js'
-import { getProfile, createProfile, updatePantryItems, Profile } from './lib/database.js'
-import { aiRecipeGenerator, AIRecipe, RecipeRequest } from './lib/aiRecipeService.js'
+import { supabase } from './lib/supabase'
+import { getProfile, createProfile, updatePantryItems, Profile } from './lib/database'
+import { aiRecipeGenerator, AIRecipe, RecipeRequest } from './lib/aiRecipeService'
 import { AIRecipeCard } from './components/AIRecipeCard'
 import { AIRecipeDetailModal } from './components/AIRecipeDetailModal'
 import { SplashScreen as CustomSplashScreen } from './components/SplashScreen'
 import { GoogleSignInButton } from './components/GoogleSignInButton'
 import { RecipeCustomizationModal } from './components/RecipeCustomizationModal'
-import { RecipeHistoryService, RecipeHistoryItem } from './lib/recipeHistory.js'
+import { RecipeHistoryService, RecipeHistoryItem } from './lib/recipeHistory'
 import { PantryManager } from './components/PantryManager'
-import { UserPreferencesService } from './lib/userPreferences.js'
+import { UserPreferencesService } from './lib/userPreferences'
 import { ProfilePage } from './components/ProfilePage'
 import { WeeklyMealTracker } from './components/WeeklyMealTracker'
-import { WeeklyMealData } from './lib/mealTracker.js'
-import { fastRecipeGenerator } from './lib/fastRecipeGenerator.js'
-import { enhancedFastRecipeGenerator } from './lib/enhancedFastRecipeGenerator.js'
-import { recipeSyncService } from './lib/recipeSync.js'
-import { CachedRecipeService } from './lib/cachedRecipeService.js'
-import { IngredientPatternsService } from './lib/ingredientPatternsService.js'
+import { WeeklyMealData } from './lib/mealTracker'
+import { fastRecipeGenerator } from './lib/fastRecipeGenerator'
+import { enhancedFastRecipeGenerator } from './lib/enhancedFastRecipeGenerator'
+import { recipeSyncService } from './lib/recipeSync'
+import { CachedRecipeService } from './lib/cachedRecipeService'
+import { IngredientPatternsService } from './lib/ingredientPatternsService'
 import { ChefHatIcon } from './components/ChefHatIcon'
-import { GoogleAuthService } from './lib/googleAuth.js'
+import { GoogleAuthService } from './lib/googleAuth'
 
 // Development mode check
 const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development'
@@ -128,7 +128,7 @@ function MainApp() {
     checkStoredSession()
     
     // Force refresh local database to get updated image URLs
-    import('./lib/localRecipeDatabase.js').then(({ localRecipeDatabase }) => {
+    import('./lib/localRecipeDatabase').then(({ localRecipeDatabase }) => {
       localRecipeDatabase.forceRefreshDatabase().catch((error: any) => {
         console.log('Failed to refresh local database:', error.message)
       })
@@ -345,7 +345,7 @@ function MainApp() {
     if (!profile || profile.pantry_items.length === 0) return
     
     // Import ingredient validation
-    const { IngredientDatabase } = await import('./lib/ingredientDatabase.js')
+    const { IngredientDatabase } = await import('./lib/ingredientDatabase')
     
     // Validate pantry composition
     const validation = IngredientDatabase.validatePantryItems(profile.pantry_items)
@@ -735,7 +735,7 @@ function MainApp() {
     if (!profile || profile.pantry_items.length === 0) return
     
     // Import ingredient validation
-    const { IngredientDatabase } = await import('./lib/ingredientDatabase.js')
+    const { IngredientDatabase } = await import('./lib/ingredientDatabase')
     
     // Validate pantry composition
     const validation = IngredientDatabase.validatePantryItems(profile.pantry_items)
