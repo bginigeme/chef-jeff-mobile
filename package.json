@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@expo/config-plugins": "^10.1.2",
+    "@expo/prebuild-config": "^9.0.11"
+  }
+}
