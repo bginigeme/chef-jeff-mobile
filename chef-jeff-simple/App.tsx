@@ -124,23 +124,39 @@ function MainApp() {
   const [lastProfessionalButtonTap, setLastProfessionalButtonTap] = useState(0)
 
   useEffect(() => {
-    checkForPasswordReset()
-    checkStoredSession()
-    
-    // Force refresh local database to get updated image URLs
-    import('./lib/localRecipeDatabase').then(({ localRecipeDatabase }) => {
-      localRecipeDatabase.forceRefreshDatabase().catch((error: any) => {
-        console.log('Failed to refresh local database:', error.message)
-      })
-    })
-    
-    // Start background sync after a short delay
-    setTimeout(() => {
-      recipeSyncService.smartSync().catch(error => {
-        console.log('Background sync failed (this is normal without API key):', error.message)
-      })
-    }, 2000)
-  }, [])
+    const startup = async () => {
+      try {
+        // Run your async startup logic
+        await checkForPasswordReset();
+        await checkStoredSession();
+
+        // Force refresh local database to get updated image URLs
+        await import('./lib/localRecipeDatabase').then(({ localRecipeDatabase }) => {
+          return localRecipeDatabase.forceRefreshDatabase().catch((error: any) => {
+            console.log('Failed to refresh local database:', error.message);
+          });
+        });
+
+        // Start background sync after a short delay
+        setTimeout(() => {
+          recipeSyncService.smartSync().catch(error => {
+            console.log('Background sync failed (this is normal without API key):', error.message);
+          });
+        }, 2000);
+      } catch (e) {
+        console.log('Startup error:', e);
+      } finally {
+        try {
+          console.log('Calling SplashScreen.hideAsync()');
+          await SplashScreen.hideAsync();
+          console.log('SplashScreen.hideAsync() called');
+        } catch (e) {
+          console.log('Error calling SplashScreen.hideAsync():', e);
+        }
+      }
+    };
+    startup();
+  }, []);
 
   const checkForPasswordReset = async () => {
     try {
@@ -228,11 +244,6 @@ function MainApp() {
       // Skip session check if we're in password reset mode
       if (showPasswordReset) {
         setInitialLoading(false)
-        try {
-          await SplashScreen.hideAsync()
-        } catch (error) {
-          // SplashScreen might not be available
-        }
         return
       }
 
@@ -263,11 +274,6 @@ function MainApp() {
     }
     
     setInitialLoading(false)
-    try {
-      await SplashScreen.hideAsync()
-    } catch (error) {
-      // SplashScreen might not be available
-    }
   }
 
   const handleSplashFinish = () => {
@@ -323,11 +329,11 @@ function MainApp() {
         setShowSetupModal(true)
       }
     } finally {
-      try {
-        await SplashScreen.hideAsync()
-      } catch (error: any) {
-        logError('Profile loading failed with error', error)
-      }
+      // try {
+      //   await SplashScreen.hideAsync()
+      // } catch (error: any) {
+      //   logError('Profile loading failed with error', error)
+      // }
     }
   }
 
