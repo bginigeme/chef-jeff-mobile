@@ -24,6 +24,9 @@ import { CachedRecipeService } from './lib/cachedRecipeService'
 import { IngredientPatternsService } from './lib/ingredientPatternsService'
 import { ChefHatIcon } from './components/ChefHatIcon'
 import { GoogleAuthService } from './lib/googleAuth'
+import Constants from 'expo-constants'
+console.log('Expo Constants manifest:', Constants.manifest)
+console.log('Expo Config:', Constants.expoConfig)
 
 // Development mode check
 const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development'
