@@ -9,7 +9,7 @@
     "newArchEnabled": false,
     "scheme": "chef-jeff-simple",
     "splash": {
-      "image": "./assets/images/chef-jeff-logo.png",
+      "image": "./assets/images/chef-jeff-transparent.png",
       "resizeMode": "contain",
       "backgroundColor": "#EA580C"
     },
@@ -46,7 +46,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/chef-jeff-logo.png",
+          "image": "./assets/images/chef-jeff-transparent.png",
           "resizeMode": "contain",
           "backgroundColor": "#EA580C"
         }

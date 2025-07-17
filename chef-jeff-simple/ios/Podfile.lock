@@ -1969,7 +1969,33 @@ PODS:
     - React-perflogger (= 0.79.5)
     - React-utils (= 0.79.5)
   - RNCAsyncStorage (2.1.2):
+<<<<<<< HEAD
     - React-Core
+=======
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
+>>>>>>> restore-working-version
   - SocketRocket (0.7.1)
   - Yoga (0.0.0)
 
@@ -2264,10 +2290,17 @@ SPEC CHECKSUMS:
   EXConstants: 98bcf0f22b820f9b28f9fee55ff2daededadd2f8
   EXJSONUtils: 1d3e4590438c3ee593684186007028a14b3686cd
   EXManifests: 691a779b04e4f2c96da46fb9bef4f86174fefcb5
+<<<<<<< HEAD
   Expo: 4b1c6de7c441e1caa1918671ae0aa34d51f019a5
   expo-dev-client: 9b1e78baf0dd87b005f035d180bbb07c05917fad
   expo-dev-launcher: a0979bd787f020f9783641c74c50984ad53cbad6
   expo-dev-menu: 1367e9de83d353901706442429fb56f1b3cc3164
+=======
+  Expo: cd501e0be567d779626d89da336c8103bbcb74de
+  expo-dev-client: 9b1e78baf0dd87b005f035d180bbb07c05917fad
+  expo-dev-launcher: 35dc0269b5fc1f628abc00e08e5a969e7809eff4
+  expo-dev-menu: 0771fa9c5c405e07aa15e55a699b8a4a984ea77a
+>>>>>>> restore-working-version
   expo-dev-menu-interface: 609c35ae8b97479cdd4c9e23c8cf6adc44beea0e
   ExpoAsset: ef06e880126c375f580d4923fdd1cdf4ee6ee7d6
   ExpoCrypto: a9f1d75baeea6ef8b03c1660621585196c382e85
@@ -2276,8 +2309,13 @@ SPEC CHECKSUMS:
   ExpoHead: 9efbc31e85b2a6b3df1fcbd7595659873bb06c81
   ExpoKeepAwake: bf0811570c8da182bfb879169437d4de298376e7
   ExpoLinking: d5c183998ca6ada66ff45e407e0f965b398a8902
+<<<<<<< HEAD
   ExpoModulesCore: e2c98670a94932b744f5bc4e394520e1c63b5462
   ExpoSplashScreen: 1c22c5d37647106e42d4ae1582bb6d0dda3b2385
+=======
+  ExpoModulesCore: e0409d8c674a651a183e941be663e1966b49e2a2
+  ExpoSplashScreen: 0ad5acac1b5d2953c6e00d4319f16d616f70d4dd
+>>>>>>> restore-working-version
   ExpoWebBrowser: dc39a88485f007e61a3dff05d6a75f22ab4a2e92
   EXUpdatesInterface: 7ff005b7af94ee63fa452ea7bb95d7a8ff40277a
   fast_float: 06eeec4fe712a76acc9376682e4808b05ce978b6
@@ -2322,6 +2360,7 @@ SPEC CHECKSUMS:
   React-performancetimeline: 8deae06fc819e6f7d1f834818e72ab5581540e45
   React-RCTActionSheet: ce67bdc050cc1d9ef673c7a93e9799288a183f24
   React-RCTAnimation: 8bb813eb29c6de85be99c62640f3a999df76ba02
+<<<<<<< HEAD
   React-RCTAppDelegate: 7367ab20c7a0c9e36bbf92fc5857b6e4930f56cc
   React-RCTBlob: a1dd15758420b6a8154019c5c188cf90648bc487
   React-RCTFabric: 8d61fb564cc0cebf11863e27ca136abc97fd5cae
@@ -2330,6 +2369,16 @@ SPEC CHECKSUMS:
   React-RCTLinking: fa49c624cd63979e7a6295ae9b1351d23ac4395a
   React-RCTNetwork: f236fd2897d18522bba24453e2995a4c83e01024
   React-RCTRuntime: b31cfd771d3c9bc488c369ef4c1c9fb4ee17fb29
+=======
+  React-RCTAppDelegate: 0200dcd70e996a7061965cfa7f8c443013cc11a1
+  React-RCTBlob: a1dd15758420b6a8154019c5c188cf90648bc487
+  React-RCTFabric: c7825ff7180893c4213eae8d249b279fc6bf5253
+  React-RCTFBReactNativeSpec: b42afeff81dfd0618a4d37c6c6cb99a66b93a363
+  React-RCTImage: 8a4f6ce18e73a7e894b886dfb7625e9e9fbc90ef
+  React-RCTLinking: fa49c624cd63979e7a6295ae9b1351d23ac4395a
+  React-RCTNetwork: f236fd2897d18522bba24453e2995a4c83e01024
+  React-RCTRuntime: 6b9e893b1d375b7a733fe26c8781e8f062f52951
+>>>>>>> restore-working-version
   React-RCTSettings: 69e2f25a5a1bf6cb37eef2e5c3bd4bb7e848296b
   React-RCTText: 515ce74ed79c31dbf509e6f12770420ebbf23755
   React-RCTVibration: ef30ada606dfed859b2c71577f6f041d47f2cfbb
@@ -2347,10 +2396,18 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: f3e842e6cb5a825b6918a74a38402ba1409411f8
   ReactCodegen: 6cb6e0d0b52471abc883541c76589d1c367c64c7
   ReactCommon: 1ab5451fc5da87c4cc4c3046e19a8054624ca763
+<<<<<<< HEAD
   RNCAsyncStorage: b9f5f78da5d16a853fe3dc22e8268d932fc45a83
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: adb397651e1c00672c12e9495babca70777e411e
 
 PODFILE CHECKSUM: 07d172993a40cb5d067c4353447ad53d77182d31
+=======
+  RNCAsyncStorage: 39c42c1e478e1f5166d1db52b5055e090e85ad66
+  SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
+  Yoga: adb397651e1c00672c12e9495babca70777e411e
+
+PODFILE CHECKSUM: 25b2b3de9ec18e33324f48315b22dbcf2a205dd8
+>>>>>>> restore-working-version
 
 COCOAPODS: 1.16.2
