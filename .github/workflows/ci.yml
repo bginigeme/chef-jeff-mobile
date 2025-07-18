@@ -47,12 +47,6 @@ jobs:
         npx expo install
         npx expo prebuild
     
-    - name: Build Android
-      working-directory: ./chef-jeff-simple
-      env:
-        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      run: eas build --platform android --non-interactive --no-wait
-    
     - name: Build iOS
       working-directory: ./chef-jeff-simple
       env:
