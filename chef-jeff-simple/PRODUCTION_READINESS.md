@@ -11,7 +11,7 @@
 ### 1. Environment Variables (CRITICAL)
 Create a `.env` file in the project root (this file should be in .gitignore):
 ```bash
-EXPO_PUBLIC_OPENAI_API_KEY=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
+EXPO_PUBLIC_OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 ### 2. Security Review

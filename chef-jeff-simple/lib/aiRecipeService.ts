@@ -20,6 +20,11 @@ const getOpenAIKey = () => {
     return process.env.EXPO_PUBLIC_OPENAI_API_KEY
   }
   
+  // For tests, return a dummy key
+  if (process.env.NODE_ENV === 'test') {
+    return 'test-api-key'
+  }
+  
   // Final fallback for development
   if (isDevelopment) {
     throw new Error('OpenAI API key not found. Please set EXPO_PUBLIC_OPENAI_API_KEY in your environment or configure it in app.json')
@@ -153,7 +158,8 @@ export class AIRecipeGenerator {
     imagePrompt?: string
   }> {
     try {
-      if (!process.env.EXPO_PUBLIC_OPENAI_API_KEY) {
+      const apiKey = getOpenAIKey()
+      if (!apiKey || apiKey === 'test-api-key') {
         return { imagePrompt: this.createImagePrompt(recipe) }
       }
 
