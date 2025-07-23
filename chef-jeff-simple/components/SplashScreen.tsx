@@ -90,15 +90,34 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationFinish })
       }),
     ])
 
+    console.log('[SplashScreen] Animation sequence starting');
     animationSequence.start(() => {
+      console.log('[SplashScreen] Animation finished');
       handleAnimationFinish()
     })
+
+    // Hard timeout: always call handleAnimationFinish after 5 seconds
+    const failSafe = setTimeout(() => {
+      console.log('[SplashScreen] Hard timeout reached, forcing finish');
+      handleAnimationFinish();
+    }, 5000);
 
     // Cleanup function to stop animation if component unmounts
     return () => {
       animationSequence.stop()
+      clearTimeout(failSafe);
     }
   }, [handleAnimationFinish])
+
+  // Add a timeout for the initial render path as well
+  useEffect(() => {
+    const initialTimeout = setTimeout(() => {
+      console.log('[SplashScreen] Initial render timeout reached, forcing ready state');
+      setIsReady(true);
+    }, 3000);
+
+    return () => clearTimeout(initialTimeout);
+  }, []);
 
   // Don't render until animated values are ready
   if (!isReady || !animatedValues.current) {
