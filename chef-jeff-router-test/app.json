@@ -1,0 +1,10 @@
+{
+  "name": "chef-jeff-router-test",
+  "slug": "chef-jeff-router-test",
+  "ios": {
+    "bundleIdentifier": "com.benngini.chef-jeff-router-test"
+  },
+  "android": {
+    "package": "com.benngini.chefjeffroutertest"
+  }
+}

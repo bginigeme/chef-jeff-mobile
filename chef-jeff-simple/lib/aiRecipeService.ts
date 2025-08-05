@@ -10,32 +10,43 @@ const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NOD
 
 // Get API key from environment variables or constants
 const getOpenAIKey = () => {
-  // Try expo-constants first (for production builds)
-  if (Constants.expoConfig?.extra?.openaiApiKey) {
-    return Constants.expoConfig.extra.openaiApiKey
+  console.log('🔍 [API] Checking for OpenAI API key...');
+  
+  // Try process.env first (for EAS builds)
+  if (process.env.EXPO_PUBLIC_OPENAI_API_KEY) {
+    const key = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+    console.log('🔍 [API] Found key in process.env:', key ? `${key.substring(0, 8)}...` : 'undefined');
+    return key;
   }
   
-  // Fallback to process.env (for development)
-  if (process.env.EXPO_PUBLIC_OPENAI_API_KEY) {
-    return process.env.EXPO_PUBLIC_OPENAI_API_KEY
+  // Try expo-constants (for local development)
+  if (Constants.expoConfig?.extra?.openaiApiKey) {
+    const key = Constants.expoConfig.extra.openaiApiKey;
+    console.log('🔍 [API] Found key in Constants:', key ? `${key.substring(0, 8)}...` : 'undefined');
+    return key;
   }
   
   // For tests, return a dummy key
   if (process.env.NODE_ENV === 'test') {
+    console.log('🔍 [API] Using test API key');
     return 'test-api-key'
   }
   
-  // Final fallback for development
-  if (isDevelopment) {
-    throw new Error('OpenAI API key not found. Please set EXPO_PUBLIC_OPENAI_API_KEY in your environment or configure it in app.json')
-  }
-  
-  throw new Error('OpenAI API key not found. Please set EXPO_PUBLIC_OPENAI_API_KEY in your environment or configure it in app.json')
+  console.log('❌ [API] No API key found in any source');
+  console.log('⚠️ [API] Continuing without image generation');
+  return null; // Return null instead of throwing error
 }
 
-const openai = new OpenAI({
-  apiKey: getOpenAIKey(),
-})
+// Initialize OpenAI client dynamically
+const getOpenAIClient = () => {
+  const apiKey = getOpenAIKey();
+  if (!apiKey) {
+    throw new Error('OpenAI API key not available');
+  }
+  return new OpenAI({
+    apiKey: apiKey,
+  });
+}
 
 export interface AIRecipe {
   id: string
@@ -153,40 +164,49 @@ export class AIRecipeGenerator {
   }
 
   // Image generation methods
-  private async generateRecipeImage(recipe: Partial<AIRecipe>): Promise<{
+  private async generateRecipeImage(recipe: Partial<AIRecipe>, fastMode: boolean = false): Promise<{
     imageUrl?: string
     imagePrompt?: string
   }> {
     try {
+      console.log('🎨 [IMAGE] Starting image generation for recipe:', recipe.title);
       const apiKey = getOpenAIKey()
+      console.log('🔑 [IMAGE] API Key check:', apiKey ? 'Found' : 'Missing', apiKey ? `${apiKey.substring(0, 8)}...` : 'No key');
+      
       if (!apiKey || apiKey === 'test-api-key') {
+        console.log('❌ [IMAGE] No valid API key found - skipping image generation');
         return { imagePrompt: this.createImagePrompt(recipe) }
       }
 
       const imagePrompt = this.createImagePrompt(recipe);
-      console.log('Image prompt:', imagePrompt);
-      console.log('🎨 Generating recipe image...');
+      console.log('🎨 [IMAGE] Image prompt created, length:', imagePrompt.length);
+      console.log('🎨 [IMAGE] Generating recipe image with DALL-E...');
       
+      console.log('🎨 [IMAGE] About to call OpenAI API...');
+      const openai = getOpenAIClient();
       const response = await openai.images.generate({
-        model: "dall-e-3",
+        model: fastMode ? "dall-e-2" : "dall-e-3", // DALL-E 2 is faster but lower quality
         prompt: imagePrompt,
         n: 1,
-        size: "1024x1024",
-        quality: "standard",
-        style: "natural"
+        size: fastMode ? "256x256" : "1024x1024", // Back to original high quality for DALL-E 3
+        ...(fastMode ? {} : { quality: "standard", style: "natural" }) // Only DALL-E 3 supports these parameters
       });
+      console.log('🎨 [IMAGE] OpenAI API call completed');
 
       const imageUrl = response.data?.[0]?.url;
-      console.log('🔗 OpenAI image URL:', imageUrl);
+      console.log('🔗 [IMAGE] OpenAI image URL:', imageUrl);
       if (imageUrl) {
-        // Use OpenAI image URL directly for now (skip Supabase upload)
+        console.log('✅ [IMAGE] Image generated successfully!');
         return { imageUrl, imagePrompt };
       } else {
+        console.log('❌ [IMAGE] No image URL in response');
         return { imagePrompt };
       }
     } catch (error: any) {
-      if (error.message?.includes('billing') || error.message?.includes('quota')) {
-        console.log('💳 Image generation unavailable - continuing without images');
+      console.error('🚨 [IMAGE] Image generation error:', error.message);
+      console.error('🚨 [IMAGE] Full error:', error);
+      if (error.message?.includes('billing') || error.message?.includes('quota') || error.message?.includes('401')) {
+        console.log('💳 [IMAGE] Image generation unavailable - continuing without images');
       } else {
         this.logError('Image generation failed', error, true);
       }
@@ -215,21 +235,71 @@ export class AIRecipeGenerator {
   }
 
   // Recipe generation with images
-  async generateRecipeWithImage(request: RecipeRequest, type: 'strict' | 'enhanced' = 'strict', userId?: string, enableImages: boolean = true): Promise<AIRecipe> {
+  async generateRecipeWithImage(request: RecipeRequest, type: 'strict' | 'enhanced' = 'strict', userId?: string, enableImages: boolean = true, fastMode: boolean = false): Promise<AIRecipe> {
     try {
+      console.log('🍳 [AI] generateRecipeWithImage called with type:', type, 'enableImages:', enableImages);
+      
       // Generate the recipe first
+      console.log('🍳 [AI] Generating single recipe...');
       const recipe = await this.generateSingleRecipe(request, type, userId)
+      console.log('🍳 [AI] Single recipe generated:', recipe.title);
       
       // Generate image if enabled
       if (enableImages) {
-        const { imageUrl, imagePrompt } = await this.generateRecipeImage(recipe)
+        console.log('🍳 [AI] Generating image for recipe:', recipe.title, fastMode ? '(FAST MODE)' : '');
+        const { imageUrl, imagePrompt } = await this.generateRecipeImage(recipe, fastMode)
         recipe.imageUrl = imageUrl
         recipe.imagePrompt = imagePrompt
+        console.log('🍳 [AI] Image generation result:', { imageUrl: imageUrl ? 'URL received' : 'No URL', imagePrompt: 'Prompt created' });
+      } else {
+        console.log('🍳 [AI] Image generation disabled');
+      }
+      
+      console.log('🍳 [AI] Final recipe has imageUrl:', recipe.imageUrl ? 'Yes' : 'No');
+      return recipe
+    } catch (error) {
+      console.error('🍳 [AI] Error in generateRecipeWithImage:', error);
+      this.logError('Error generating recipe with image', error, true)
+      throw error
+    }
+  }
+
+  // Progressive loading: Generate recipe first, then image separately
+  async generateRecipeProgressive(request: RecipeRequest, type: 'strict' | 'enhanced' = 'strict', userId?: string, onRecipeReady?: (recipe: AIRecipe) => void): Promise<AIRecipe> {
+    try {
+      console.log('🍳 [AI] generateRecipeProgressive called with type:', type);
+      
+      // Generate the recipe first (no image)
+      console.log('🍳 [AI] Generating recipe without image...');
+      const recipe = await this.generateSingleRecipe(request, type, userId)
+      console.log('🍳 [AI] Recipe generated:', recipe.title);
+      
+      // Call callback immediately with recipe (no image)
+      if (onRecipeReady) {
+        onRecipeReady(recipe);
+      }
+      
+      // Generate image in background
+      console.log('🍳 [AI] Generating image in background...');
+      try {
+        const { imageUrl, imagePrompt } = await this.generateRecipeImage(recipe, true) // Use fast mode
+        recipe.imageUrl = imageUrl
+        recipe.imagePrompt = imagePrompt
+        console.log('🍳 [AI] Background image generation completed');
+        
+        // Call callback again with updated recipe (with image)
+        if (onRecipeReady) {
+          onRecipeReady(recipe);
+        }
+      } catch (imageError) {
+        console.error('🍳 [AI] Background image generation failed:', imageError);
+        // Continue without image
       }
       
       return recipe
     } catch (error) {
-      this.logError('Error generating recipe with image', error, true)
+      console.error('🍳 [AI] Error in generateRecipeProgressive:', error);
+      this.logError('Error generating recipe progressively', error, true)
       throw error
     }
   }
@@ -246,6 +316,7 @@ export class AIRecipeGenerator {
         ? await this.buildStrictPrompt(request, userId)
         : await this.buildEnhancedPrompt(request, userId)
       
+      const openai = getOpenAIClient();
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [

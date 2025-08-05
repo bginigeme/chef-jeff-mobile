@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "4a335c15-f842-4792-9afa-3f2ca4389c32"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "chefjeff",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
