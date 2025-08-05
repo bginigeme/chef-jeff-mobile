@@ -3,8 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Alert, Tex
 import { AIRecipeGenerator } from '../lib/aiRecipeService';
 import { UserPreferencesService } from '../lib/userPreferences';
 import { RecipeHistoryService } from '../lib/recipeHistory';
-import { SocialMediaShareModal } from './SocialMediaShareModal';
-import { SocialMediaRecipeService, SocialMediaRecipe } from '../lib/socialMediaRecipeService';
 
 const quickAddItems = ['Ground beef', 'Salmon', 'Eggs', 'Rice', 'Bread'];
 const allRecipes = [
@@ -23,7 +21,7 @@ const allRecipes = [
 ];
 
 export const HomeScreen = ({ onProfile, onSignOut }: { onProfile: () => void; onSignOut: () => void }) => {
-  const [tab, setTab] = useState<'cook' | 'history' | 'social'>('cook');
+  const [tab, setTab] = useState<'cook' | 'history'>('cook');
   const [showRecipes, setShowRecipes] = useState(false);
   const [pantry, setPantry] = useState<string[]>(['Chicken breast', 'Eggs', 'Potatoes', 'Pasta']);
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -38,9 +36,6 @@ export const HomeScreen = ({ onProfile, onSignOut }: { onProfile: () => void; on
   const [fastMode, setFastMode] = useState(false); // Toggle for faster image generation
   const [historyRecipes, setHistoryRecipes] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [socialMediaModalVisible, setSocialMediaModalVisible] = useState(false);
-  const [socialMediaRecipes, setSocialMediaRecipes] = useState<SocialMediaRecipe[]>([]);
-  const [socialMediaLoading, setSocialMediaLoading] = useState(false);
 
   // Calculate have/need for each recipe based on pantry
   const recommendedRecipes = allRecipes.map((recipe) => {
@@ -77,32 +72,8 @@ export const HomeScreen = ({ onProfile, onSignOut }: { onProfile: () => void; on
       
       // Generate two recipes with progressive loading
       const [recipe1, recipe2] = await Promise.all([
-        generator.generateRecipeProgressive(request, 'strict', undefined, (recipe) => {
-          // Update recipes as they become available
-          setAiRecipes(prev => {
-            const updated = [...prev];
-            const index = updated.findIndex(r => r.id === recipe.id);
-            if (index >= 0) {
-              updated[index] = recipe;
-            } else {
-              updated.push(recipe);
-            }
-            return updated;
-          });
-        }),
-        generator.generateRecipeProgressive(request, 'enhanced', undefined, (recipe) => {
-          // Update recipes as they become available
-          setAiRecipes(prev => {
-            const updated = [...prev];
-            const index = updated.findIndex(r => r.id === recipe.id);
-            if (index >= 0) {
-              updated[index] = recipe;
-            } else {
-              updated.push(recipe);
-            }
-            return updated;
-          });
-        })
+        generator.generateRecipeWithImage(request, 'strict', undefined, true),
+        generator.generateRecipeWithImage(request, 'enhanced', undefined, true)
       ]);
       
       console.log('🍳 [CHEFJEFF] Generated recipes:', { 
@@ -196,33 +167,8 @@ export const HomeScreen = ({ onProfile, onSignOut }: { onProfile: () => void; on
   React.useEffect(() => {
     if (tab === 'history') {
       loadHistory();
-    } else if (tab === 'social') {
-      loadSocialMediaRecipes();
     }
   }, [tab]);
-
-  const loadSocialMediaRecipes = async () => {
-    try {
-      setSocialMediaLoading(true);
-      console.log('🔗 [SOCIAL] Loading social media recipes...');
-      
-      const socialMediaService = new SocialMediaRecipeService();
-      const recipes = await socialMediaService.getSocialMediaRecipes();
-      console.log('🔗 [SOCIAL] Loaded', recipes.length, 'social media recipes');
-      
-      setSocialMediaRecipes(recipes);
-    } catch (error) {
-      console.error('❌ [SOCIAL] Error loading social media recipes:', error);
-    } finally {
-      setSocialMediaLoading(false);
-    }
-  };
-
-  const handleSocialMediaRecipeExtracted = (recipe: SocialMediaRecipe) => {
-    console.log('💾 [SOCIAL] Recipe extracted and saved:', recipe.title);
-    setSocialMediaRecipes(prev => [recipe, ...prev]);
-    Alert.alert('Success', 'Recipe extracted and saved successfully!');
-  };
 
   return (
     <View style={styles.container}>
@@ -254,14 +200,6 @@ export const HomeScreen = ({ onProfile, onSignOut }: { onProfile: () => void; on
         >
           <Text style={[styles.tabButtonText, tab === 'history' && styles.tabButtonTextActive]}>
             📚 History ({historyRecipes.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, tab === 'social' && styles.tabButtonActive]}
-          onPress={() => setTab('social')}
-        >
-          <Text style={[styles.tabButtonText, tab === 'social' && styles.tabButtonTextActive]}>
-            Cookbook ({socialMediaRecipes.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -333,13 +271,13 @@ export const HomeScreen = ({ onProfile, onSignOut }: { onProfile: () => void; on
                 {selectedRecipe && (
                   <ScrollView style={styles.recipeDetailContent}>
                     {selectedRecipe.imageUrl && (
-                                              <Image 
-                          source={{ uri: selectedRecipe.imageUrl }} 
-                          style={styles.recipeDetailImage}
-                          resizeMode="contain"
-                          onError={(e) => console.error('Recipe detail image error:', e.nativeEvent)}
-                          onLoad={() => console.log('Recipe detail image loaded successfully')}
-                        />
+                      <Image 
+                        source={{ uri: selectedRecipe.imageUrl }} 
+                        style={styles.recipeDetailImage}
+                        resizeMode="contain"
+                        onError={(e) => console.error('Recipe detail image error:', e.nativeEvent)}
+                        onLoad={() => console.log('Recipe detail image loaded successfully')}
+                      />
                     )}
                     <Text style={styles.recipeDetailRecipeTitle}>{selectedRecipe.title}</Text>
                     <Text style={styles.recipeDetailDescription}>{selectedRecipe.description}</Text>
@@ -412,7 +350,7 @@ export const HomeScreen = ({ onProfile, onSignOut }: { onProfile: () => void; on
                   Add ingredients to your pantry to get AI-generated recipe recommendations!
                 </Text>
               ) : (
-                                aiRecipes.map((recipe, idx) => {
+                aiRecipes.map((recipe, idx) => {
                   console.log(`Rendering recipe ${idx}:`, { title: recipe.title, imageUrl: recipe.imageUrl });
                   
                   // Calculate have/need based on pantry ingredients
@@ -610,178 +548,7 @@ export const HomeScreen = ({ onProfile, onSignOut }: { onProfile: () => void; on
             </View>
           )}
         </ScrollView>
-      ) : tab === 'social' ? (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
-          {/* Social Media Header */}
-          <View style={styles.socialHeader}>
-            <Text style={styles.socialTitle}>Social Media Recipes</Text>
-            <Text style={styles.socialSubtitle}>
-              {socialMediaRecipes.length} recipes from social media
-            </Text>
-            <TouchableOpacity
-              style={styles.shareButton}
-              onPress={() => setSocialMediaModalVisible(true)}
-            >
-              <Text style={styles.shareButtonText}>🔗 Share New Recipe</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Loading State */}
-          {socialMediaLoading && (
-            <View style={styles.socialLoading}>
-              <ActivityIndicator size="large" color="#EA580C" />
-              <Text style={styles.socialLoadingText}>Loading your social media recipes...</Text>
-            </View>
-          )}
-
-          {/* Empty State */}
-          {!socialMediaLoading && socialMediaRecipes.length === 0 && (
-            <View style={styles.socialEmpty}>
-              <Text style={styles.socialEmptyTitle}>No social media recipes yet!</Text>
-              <Text style={styles.socialEmptyText}>
-                Share a link from Instagram, TikTok, or X (Twitter) to extract recipe information
-              </Text>
-              <TouchableOpacity
-                style={styles.shareButtonEmpty}
-                onPress={() => setSocialMediaModalVisible(true)}
-              >
-                <Text style={styles.shareButtonEmptyText}>🔗 Share Your First Recipe</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Social Media Recipes */}
-          {!socialMediaLoading && socialMediaRecipes.length > 0 && (
-            <View style={styles.socialRecipes}>
-              {socialMediaRecipes.map((recipe, index) => {
-                const getPlatformIcon = (platform: string) => {
-                  switch (platform) {
-                    case 'instagram':
-                      return '📷';
-                    case 'tiktok':
-                      return '🎵';
-                    case 'twitter':
-                    case 'x':
-                      return '🐦';
-                    default:
-                      return '🔗';
-                  }
-                };
-
-                const getPlatformName = (platform: string) => {
-                  switch (platform) {
-                    case 'instagram':
-                      return 'Instagram';
-                    case 'tiktok':
-                      return 'TikTok';
-                    case 'twitter':
-                    case 'x':
-                      return 'X (Twitter)';
-                    default:
-                      return 'Social Media';
-                  }
-                };
-
-                return (
-                  <View key={recipe.id || index} style={styles.socialRecipeCard}>
-                    <View style={styles.socialRecipeHeader}>
-                      <Text style={styles.socialPlatformBadge}>
-                        {getPlatformIcon(recipe.sourcePlatform)} {getPlatformName(recipe.sourcePlatform)}
-                      </Text>
-                      <Text style={styles.socialRecipeDate}>
-                        {recipe.createdAt.toLocaleDateString()}
-                      </Text>
-                    </View>
-
-                    {recipe.mediaUrl ? (
-                      <Image 
-                        source={{ uri: recipe.mediaUrl }} 
-                        style={styles.socialRecipeImage}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <View style={styles.socialRecipeImagePlaceholder}>
-                        <Text style={styles.socialRecipeImagePlaceholderText}>No media</Text>
-                      </View>
-                    )}
-                    
-                    <View style={styles.socialRecipeContent}>
-                      <Text style={styles.socialRecipeTitle} numberOfLines={2}>
-                        {recipe.title}
-                      </Text>
-                      
-                      <Text style={styles.socialRecipeDescription} numberOfLines={3}>
-                        {recipe.description}
-                      </Text>
-
-                      <View style={styles.socialRecipeStats}>
-                        <Text style={styles.socialRecipeStat}>⏱️ {recipe.cookingTime} min</Text>
-                        <Text style={styles.socialRecipeStat}>👥 Serves {recipe.servings}</Text>
-                        <Text style={styles.socialRecipeStat}>📊 {recipe.difficulty}</Text>
-                      </View>
-
-                      <View style={styles.socialRecipeIngredients}>
-                        <Text style={styles.socialRecipeIngredientsTitle}>Ingredients:</Text>
-                        <Text style={styles.socialRecipeIngredientsText} numberOfLines={2}>
-                          {recipe.ingredients.slice(0, 3).map((ing) => ing.name).join(', ')}
-                          {recipe.ingredients.length > 3 ? '...' : ''}
-                        </Text>
-                      </View>
-
-                      <View style={styles.socialRecipeActions}>
-                        <TouchableOpacity 
-                          style={styles.socialViewButton}
-                          onPress={() => {
-                            setSelectedRecipe(recipe);
-                            setRecipeDetailVisible(true);
-                          }}
-                        >
-                          <Text style={styles.socialViewButtonText}>View Recipe</Text>
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity 
-                          style={styles.socialSourceButton}
-                          onPress={() => {
-                            // In a real app, you'd open the URL
-                            Alert.alert('Source', `Original post: ${recipe.sourceUrl}`);
-                          }}
-                        >
-                          <Text style={styles.socialSourceButtonText}>View Source</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                );
-              })}
-              
-              {/* Add More Recipes Button */}
-              <TouchableOpacity
-                style={styles.addMoreRecipesButton}
-                onPress={() => setSocialMediaModalVisible(true)}
-              >
-                <Text style={styles.addMoreRecipesButtonText}>🔗 Add More Recipes</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </ScrollView>
       ) : null}
-
-      {/* Social Media Share Modal */}
-      <SocialMediaShareModal
-        visible={socialMediaModalVisible}
-        onClose={() => setSocialMediaModalVisible(false)}
-        onRecipeExtracted={handleSocialMediaRecipeExtracted}
-      />
-
-      {/* Floating Action Button for Social Media */}
-      {tab === 'social' && (
-        <TouchableOpacity
-          style={styles.floatingActionButton}
-          onPress={() => setSocialMediaModalVisible(true)}
-        >
-          <Text style={styles.floatingActionButtonText}>🔗</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 };
@@ -1051,7 +818,7 @@ const styles = StyleSheet.create({
   },
   recipeImage: {
     width: '100%',
-    height: 240,
+    height: 200,
     borderRadius: 8,
     marginBottom: 12,
     resizeMode: 'contain',
@@ -1453,245 +1220,5 @@ const styles = StyleSheet.create({
   },
   dislikedButtonText: {
     color: '#6B7280',
-  },
-  // Social Media Styles
-  socialHeader: {
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  socialTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  socialSubtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 16,
-  },
-  shareButton: {
-    backgroundColor: '#EA580C',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  shareButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  socialLoading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  socialLoadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 12,
-  },
-  socialEmpty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  socialEmptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  socialEmptyText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingHorizontal: 40,
-    marginBottom: 20,
-  },
-  shareButtonEmpty: {
-    backgroundColor: '#EA580C',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  shareButtonEmptyText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  socialRecipes: {
-    padding: 20,
-  },
-  socialRecipeCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  socialRecipeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    paddingBottom: 8,
-  },
-  socialPlatformBadge: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    fontSize: 12,
-    color: '#374151',
-    fontWeight: '600',
-  },
-  socialRecipeDate: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  socialRecipeImage: {
-    width: '100%',
-    height: 220,
-    resizeMode: 'contain',
-    backgroundColor: '#F3F4F6',
-  },
-  socialRecipeImagePlaceholder: {
-    width: '100%',
-    height: 200,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  socialRecipeImagePlaceholderText: {
-    fontSize: 16,
-    color: '#9CA3AF',
-  },
-  socialRecipeContent: {
-    padding: 16,
-  },
-  socialRecipeTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  socialRecipeDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  socialRecipeStats: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
-  },
-  socialRecipeStat: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-  socialRecipeIngredients: {
-    marginBottom: 16,
-  },
-  socialRecipeIngredientsTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  socialRecipeIngredientsText: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  socialRecipeActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialViewButton: {
-    flex: 1,
-    backgroundColor: '#EA580C',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  socialViewButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  socialSourceButton: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  socialSourceButtonText: {
-    color: '#374151',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  // Floating Action Button
-  floatingActionButton: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#EA580C',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  floatingActionButtonText: {
-    fontSize: 24,
-    color: '#FFFFFF',
-  },
-  addMoreRecipesButton: {
-    backgroundColor: '#EA580C',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 20,
-    marginBottom: 10,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addMoreRecipesButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 }); 

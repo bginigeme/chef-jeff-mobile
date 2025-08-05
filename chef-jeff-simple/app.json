@@ -2,7 +2,7 @@
   "expo": {
     "name": "Chef Jeff",
     "slug": "chef-jeff-simple",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "portrait",
     "icon": "./assets/images/chef-jeff-logo.png",
     "userInterfaceStyle": "light",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.chefjeff.simple",
-      "buildNumber": "23",
+      "buildNumber": "28",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Chef Jeff needs access to your camera to take photos of your food and ingredients.",
@@ -53,22 +53,6 @@
       ],
       "expo-tracking-transparency"
     ],
-    "ios": {
-      "bundleIdentifier": "com.chefjeff.simple",
-      "buildNumber": "23",
-      "supportsTablet": false,
-      "infoPlist": {
-        "NSCameraUsageDescription": "Chef Jeff needs access to your camera to take photos of your food and ingredients.",
-        "NSPhotoLibraryUsageDescription": "Chef Jeff needs access to your photos to select images of your food and ingredients.",
-        "NSLocationWhenInUseUsageDescription": "Chef Jeff uses your location to find nearby grocery stores and restaurants.",
-        "CFBundleURLTypes": [
-          {
-            "CFBundleURLName": "chefjeff",
-            "CFBundleURLSchemes": ["chefjeff"]
-          }
-        ]
-      }
-    },
     "extra": {
       "router": {
         "origin": false
