@@ -137,17 +137,33 @@ function MainApp() {
         // Test Firebase connection
         console.log('🧪 Testing Firebase configuration...')
         testFirebaseConnection()
-        // Do not control native splash; rely on custom overlay
-        // Finish initial loading immediately
-        setInitialLoading(false)
+        
+        // Check for stored Firebase session (this will set initialLoading to false when auth state is determined)
+        const unsubscribe = await checkStoredSession()
+        
         console.log('✅ Startup completed successfully')
+        
+        // Return cleanup function
+        return unsubscribe
       } catch (e) {
         console.log('Startup error:', e)
         // Ensure app continues even if something fails
         setInitialLoading(false)
       }
     }
-    startup()
+    
+    const cleanup = startup()
+    
+    // Cleanup function
+    return () => {
+      if (cleanup && typeof cleanup.then === 'function') {
+        cleanup.then(unsubscribe => {
+          if (unsubscribe && typeof unsubscribe === 'function') {
+            unsubscribe()
+          }
+        })
+      }
+    }
   }, [])
 
   // Load recipe history when session changes or when switching to history tab
@@ -157,6 +173,18 @@ function MainApp() {
       loadRecipeHistory()
     }
   }, [session?.user?.uid, currentTab])
+
+  // Fallback timeout to prevent getting stuck on splash screen
+  useEffect(() => {
+    if (showSplash) {
+      const fallbackTimeout = setTimeout(() => {
+        console.log('⚠️ Splash screen fallback timeout reached, forcing continue');
+        setShowSplash(false);
+      }, 5000); // 5 second fallback
+      
+      return () => clearTimeout(fallbackTimeout);
+    }
+  }, [showSplash])
 
   const handleSplashFinish = () => {
     setShowSplash(false)
@@ -263,19 +291,28 @@ function MainApp() {
     try {
       console.log('🔍 Checking stored Firebase session...');
       
-      // Check if user is already signed in with Firebase
-      const currentUser = FirebaseAuthService.getCurrentUser();
-      if (currentUser) {
-        console.log('🔍 Found Firebase user:', currentUser.uid);
-        setSession({ user: currentUser });
-      } else {
-        console.log('🔍 No Firebase user found');
-      }
+      // Use onAuthStateChanged to wait for Firebase to restore the session from AsyncStorage
+      const unsubscribe = FirebaseAuthService.onAuthStateChange((user) => {
+        console.log('🔍 Auth state changed:', user ? `User ${user.uid}` : 'No user');
+        
+        if (user) {
+          console.log('🔍 Found Firebase user:', user.uid);
+          setSession({ user });
+        } else {
+          console.log('🔍 No Firebase user found');
+          setSession(null);
+        }
+        
+        // Only set initial loading to false after auth state is determined
+        setInitialLoading(false);
+      });
+      
+      // Cleanup subscription when component unmounts
+      return unsubscribe;
     } catch (error) {
       console.log('❌ Firebase session check failed:', error);
+      setInitialLoading(false);
     }
-    
-    setInitialLoading(false)
   }
 
   // Background loading after app is visible
@@ -440,7 +477,7 @@ function MainApp() {
       // Try cached recipes first for instant results
       const cachedResult = await CachedRecipeService.getFastRecipes(
         request,
-        session?.user?.id,
+        session?.user?.uid,
         false // Don't force refresh
       )
       
@@ -473,7 +510,7 @@ function MainApp() {
         // Generate new recipes with progressive loading
         const finalRecipes = await aiRecipeGenerator.generateDualPantryRecipesProgressive(
           request, 
-          session?.user?.id,
+          session?.user?.uid,
           // Callback for when each recipe is ready
           async (recipeType, recipe) => {
             console.log(`📝 ${recipeType} recipe received:`, recipe.title)
@@ -1520,9 +1557,9 @@ function MainApp() {
                           })) || [],
                           instructions: recipe.instructions || [],
                           imageUrl: recipe.image || '',
-                          cookingTime: parseInt(recipe.cookingTime?.replace(/\D/g, '') || '30'),
-                          servings: parseInt(recipe.servings?.replace(/\D/g, '') || '4'),
-                          difficulty: (recipe.difficulty?.toLowerCase() as 'Easy' | 'Medium' | 'Hard') || 'Medium',
+                          cookingTime: 30, // Default cooking time for imported recipes
+                          servings: 4, // Default servings for imported recipes
+                          difficulty: 'Medium' as 'Easy' | 'Medium' | 'Hard', // Default difficulty
                           tags: recipe.hashtags || []
                         };
                         

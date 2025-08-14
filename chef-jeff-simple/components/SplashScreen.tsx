@@ -45,66 +45,73 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationFinish })
     
     const { fadeAnim, scaleAnim, slideAnim, logoOpacity, textOpacity } = animatedValues.current
     
+    console.log('[SplashScreen] Starting animation sequence...');
+    
+    // Simplified animation sequence that's more reliable
     const animationSequence = Animated.sequence([
-      // First, fade in the background
+      // Fade in background
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 500,
+        duration: 300,
         useNativeDriver: true,
       }),
-      // Then animate the logo container
+      // Show logo and text together
       Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
         Animated.spring(scaleAnim, {
           toValue: 1,
           tension: 50,
           friction: 7,
           useNativeDriver: true,
         }),
-        Animated.timing(logoOpacity, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Then slide up and show the text
-      Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 50,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-        Animated.timing(textOpacity, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
       ]),
       // Hold for a moment
       Animated.delay(1000),
-      // Then fade out
+      // Fade out
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 500,
+        duration: 300,
         useNativeDriver: true,
       }),
     ])
 
     console.log('[SplashScreen] Animation sequence starting');
-    animationSequence.start(() => {
-      console.log('[SplashScreen] Animation finished');
-      handleAnimationFinish()
-    })
+    
+    // Start the animation with error handling
+    try {
+      animationSequence.start((result) => {
+        console.log('[SplashScreen] Animation finished with result:', result);
+        handleAnimationFinish();
+      });
+    } catch (error) {
+      console.log('[SplashScreen] Animation failed to start:', error);
+      // If animation fails, call finish immediately
+      handleAnimationFinish();
+    }
 
-    // Hard timeout: always call handleAnimationFinish after 5 seconds
+    // Hard timeout: always call handleAnimationFinish after 3 seconds (reduced from 5)
     const failSafe = setTimeout(() => {
       console.log('[SplashScreen] Hard timeout reached, forcing finish');
       handleAnimationFinish();
-    }, 5000);
+    }, 3000);
 
     // Cleanup function to stop animation if component unmounts
     return () => {
-      animationSequence.stop()
+      console.log('[SplashScreen] Cleanup: stopping animation');
+      try {
+        animationSequence.stop();
+      } catch (error) {
+        console.log('[SplashScreen] Error stopping animation:', error);
+      }
       clearTimeout(failSafe);
     }
   }, [handleAnimationFinish])
