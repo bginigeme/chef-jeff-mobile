@@ -10,18 +10,31 @@ export interface Profile {
   updated_at: string;
 }
 
-// Get user profile
+// Get user profile with timeout protection
 export const getProfile = async (userId: string): Promise<Profile | null> => {
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId)
+  try {
+    // Add timeout protection to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Profile fetch timeout')), 5000); // 5 second timeout
+    });
 
-  if (error) {
-    console.error('Error fetching profile:', error);
+    const fetchPromise = supabase.from('profiles').select('*').eq('id', userId);
+    
+    const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+    const { data, error } = result;
+
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return null;
+    }
+
+    // Find the profile with matching id
+    const profile = data?.[0];
+    return profile || null;
+  } catch (error) {
+    console.error('Profile fetch failed (timeout or error):', error);
     return null;
   }
-
-  // Find the profile with matching id
-  const profile = data?.[0];
-  return profile || null;
 };
 
 // Create user profile

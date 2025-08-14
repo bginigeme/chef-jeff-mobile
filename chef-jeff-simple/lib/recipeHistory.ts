@@ -9,6 +9,9 @@ export interface RecipeHistoryItem extends AIRecipe {
   isFavorite?: boolean
   userRating?: number // 1-5 stars
   userNotes?: string
+  // Optional origin info for imported items
+  source?: 'ai' | 'imported' | 'saved'
+  sourceURL?: string
 }
 
 export class RecipeHistoryService {

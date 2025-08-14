@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert, TextInput } from 'react-native'
 import { UserPreferencesService } from '../lib/userPreferences'
+import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../lib/firebase'
 
 interface ProfilePageProps {
   userId: string
   userName: string
   visible: boolean
   onClose: () => void
+  onProfileUpdate?: (newName: string) => void
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({ 
   userId, 
   userName, 
   visible, 
-  onClose 
+  onClose,
+  onProfileUpdate
 }) => {
   const [stats, setStats] = useState({
     totalLikes: 0,
@@ -28,6 +32,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     preferredCuisines: [] as string[],
     dislikedCuisines: [] as string[]
   })
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editFirstName, setEditFirstName] = useState(userName.split(' ')[0] || '')
+  const [editLastName, setEditLastName] = useState(userName.split(' ').slice(1).join(' ') || '')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
     if (visible && userId) {
@@ -35,18 +43,52 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     }
   }, [visible, userId])
 
+  // Update edit fields when userName changes
+  useEffect(() => {
+    setEditFirstName(userName.split(' ')[0] || '')
+    setEditLastName(userName.split(' ').slice(1).join(' ') || '')
+  }, [userName])
+
   const loadUserData = async () => {
     try {
+      console.log('🔍 ProfilePage: Loading data for userId:', userId)
+      console.log('🔍 ProfilePage: userId type:', typeof userId)
+      console.log('🔍 ProfilePage: userId length:', userId?.length)
+      
+      if (!userId || userId.trim() === '') {
+        console.error('❌ ProfilePage: Invalid userId:', userId)
+        return
+      }
+      
+      // Try cloud aggregates first
+      const aggRef = doc(db, 'users', userId, 'preferences', 'aggregates')
+      console.log('🔍 ProfilePage: Document path:', aggRef.path)
+      const aggSnap = await getDoc(aggRef)
+
+      if (aggSnap.exists()) {
+        const agg = aggSnap.data() as any
+        console.log('📊 ProfilePage: Firebase aggregates found:', agg)
+        setStats(prev => ({
+          ...prev,
+          totalLikes: agg.totalLikes || 0,
+          totalDislikes: agg.totalDislikes || 0,
+        }))
+      } else {
+        console.log('❌ ProfilePage: No Firebase aggregates document found')
+      }
+
+      // Local learned preferences (until we compute cloud-side)
       const userStats = await UserPreferencesService.getUserStats(userId)
       const userPrefs = await UserPreferencesService.getUserPreferences(userId)
+      console.log('📊 ProfilePage: Local stats:', userStats)
+      console.log('📊 ProfilePage: Local prefs:', userPrefs)
       
-      setStats({
-        totalLikes: userStats.totalLikes,
-        totalDislikes: userStats.totalDislikes,
+      setStats(prev => ({
+        ...prev,
         topCuisine: userStats.topCuisine,
         favoriteIngredients: userStats.favoriteIngredients,
-        averageCookingTime: userStats.averageCookingTime
-      })
+        averageCookingTime: userStats.averageCookingTime,
+      }))
       setPreferences({
         preferredIngredients: userPrefs.preferredIngredients,
         dislikedIngredients: userPrefs.dislikedIngredients,
@@ -60,6 +102,78 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
   const hasLearningData = stats.totalLikes > 0 || stats.totalDislikes > 0
 
+  // Debug: Log stats state changes
+  useEffect(() => {
+    console.log('🔍 ProfilePage: Stats state updated:', stats)
+    console.log('🔍 ProfilePage: hasLearningData:', hasLearningData)
+  }, [stats, hasLearningData])
+
+  const handleEditProfile = () => {
+    setEditFirstName(userName.split(' ')[0] || '')
+    setEditLastName(userName.split(' ').slice(1).join(' ') || '')
+    setShowEditModal(true)
+  }
+
+  const handleSaveProfile = async () => {
+    try {
+      // Update profile in Firebase
+      const profileRef = doc(db, 'users', userId)
+      await updateDoc(profileRef, {
+        firstName: editFirstName.trim(),
+        lastName: editLastName.trim(),
+        updatedAt: serverTimestamp()
+      })
+      
+      console.log('✅ Profile updated successfully')
+      
+      // Update local state
+      const newFullName = `${editFirstName.trim()} ${editLastName.trim()}`.trim()
+      
+      // Notify parent component
+      if (onProfileUpdate) {
+        onProfileUpdate(newFullName)
+      }
+      
+      setShowEditModal(false)
+      
+      // Refresh the profile data
+      loadUserData()
+    } catch (error) {
+      console.error('❌ Failed to update profile:', error)
+      Alert.alert('Error', 'Failed to update profile. Please try again.')
+    }
+  }
+
+  const handleDeleteAccount = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const handleCookbook = () => {
+    console.log('Cookbook button pressed')
+    // TODO: Navigate to cookbook view showing all liked recipes
+    Alert.alert('Cookbook', 'Coming soon! This will show all your liked recipes.')
+  }
+
+  const confirmDeleteAccount = async () => {
+    try {
+      // Delete user data from Firebase
+      const userRef = doc(db, 'users', userId)
+      await deleteDoc(userRef)
+      
+      console.log('✅ Account deleted successfully')
+      setShowDeleteConfirm(false)
+      onClose() // Close profile modal
+      
+      // You might want to sign out the user here
+      // FirebaseAuthService.signOut()
+      
+      Alert.alert('Account Deleted', 'Your account has been permanently deleted.')
+    } catch (error) {
+      console.error('❌ Failed to delete account:', error)
+      Alert.alert('Error', 'Failed to delete account. Please try again.')
+    }
+  }
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={styles.container}>
@@ -70,30 +184,49 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </TouchableOpacity>
           <Text style={styles.title}>{userName}'s Kitchen Profile</Text>
           <Text style={styles.subtitle}>Chef Jeff's insights about your tastes</Text>
+          <TouchableOpacity onPress={loadUserData} style={styles.refreshButton}>
+            <Text style={styles.refreshButtonText}>🔄</Text>
+          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Recipe Activity Stats - Always show */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📊 Stats</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>{stats.totalLikes}</Text>
+                <Text style={styles.statLabel}>👍 Liked Recipes</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>{stats.totalDislikes}</Text>
+                <Text style={styles.statLabel}>👎 Passed Recipes</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statNumber}>{stats.averageCookingTime}m</Text>
+                <Text style={styles.statLabel}>⏱️ Avg Cook Time</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Profile Actions */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>👤 Profile</Text>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity style={styles.actionButton} onPress={handleEditProfile}>
+                <Text style={styles.actionButtonText}>✏️ Edit Profile</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cookbookButton} onPress={handleCookbook}>
+                <Text style={styles.cookbookButtonText}>📚 Cookbook</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
+                <Text style={styles.deleteButtonText}>Delete Account</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {hasLearningData ? (
             <>
-              {/* Recipe Activity Stats */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>📊 Stats</Text>
-                <View style={styles.statsGrid}>
-                  <View style={styles.statCard}>
-                    <Text style={styles.statNumber}>{stats.totalLikes}</Text>
-                    <Text style={styles.statLabel}>👍 Liked Recipes</Text>
-                  </View>
-                  <View style={styles.statCard}>
-                    <Text style={styles.statNumber}>{stats.totalDislikes}</Text>
-                    <Text style={styles.statLabel}>👎 Passed Recipes</Text>
-                  </View>
-                  <View style={styles.statCard}>
-                    <Text style={styles.statNumber}>{stats.averageCookingTime}m</Text>
-                    <Text style={styles.statLabel}>⏱️ Avg Cook Time</Text>
-                  </View>
-                </View>
-              </View>
-
               {/* Learned Preferences */}
               {preferences.preferredIngredients.length > 0 && (
                 <View style={styles.section}>
@@ -153,19 +286,88 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>🤖</Text>
               <Text style={styles.emptyTitle}>Chef Jeff is Ready to Learn!</Text>
-              <Text style={styles.emptyText}>
-                Start rating recipes with 👍 and 👎 to help Chef Jeff understand your taste preferences. 
-                The more you rate, the better your personalized recommendations will become!
+              <Text style={styles.emptySubtitle}>
+                Start rating recipes with 👍 and 👎 to help Chef Jeff understand your taste preferences. The more you rate, the better your personalized recommendations will become!
               </Text>
-              <View style={styles.tipsContainer}>
-                <Text style={styles.tipsTitle}>💡 Pro Tips:</Text>
-                <Text style={styles.tipText}>• Rate recipes honestly to get better suggestions</Text>
-                <Text style={styles.tipText}>• Like recipes even if you haven't cooked them yet</Text>
-                <Text style={styles.tipText}>• Your preferences will improve with each rating</Text>
+              
+              <View style={styles.proTips}>
+                <Text style={styles.proTipsTitle}>💡 Pro Tips:</Text>
+                <Text style={styles.proTip}>• Rate recipes honestly to get better suggestions</Text>
+                <Text style={styles.proTip}>• Like recipes even if you haven't cooked them yet</Text>
+                <Text style={styles.proTip}>• Your preferences will improve with each rating</Text>
               </View>
             </View>
           )}
         </ScrollView>
+
+        {/* Edit Profile Modal */}
+        <Modal visible={showEditModal} animationType="slide" transparent={true}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+              
+              <TextInput
+                style={styles.input}
+                placeholder="First Name"
+                value={editFirstName}
+                onChangeText={setEditFirstName}
+                autoCapitalize="words"
+              />
+              
+              <TextInput
+                style={styles.input}
+                placeholder="Last Name"
+                value={editLastName}
+                onChangeText={setEditLastName}
+                autoCapitalize="words"
+              />
+              
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.cancelButton]} 
+                  onPress={() => setShowEditModal(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.saveButton]} 
+                  onPress={handleSaveProfile}
+                >
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Delete Account Confirmation Modal */}
+        <Modal visible={showDeleteConfirm} animationType="slide" transparent={true}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Delete Account</Text>
+              <Text style={styles.deleteWarning}>
+                ⚠️ This action cannot be undone. All your data, recipes, and preferences will be permanently deleted.
+              </Text>
+              
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.cancelButton]} 
+                  onPress={() => setShowDeleteConfirm(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.deleteConfirmButton]} 
+                  onPress={confirmDeleteAccount}
+                >
+                  <Text style={styles.deleteConfirmButtonText}>Delete Forever</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Modal>
   )
@@ -228,6 +430,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
+  },
+  refreshButton: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  refreshButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
@@ -347,30 +565,149 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
   },
-  emptyText: {
+  emptySubtitle: {
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
   },
-  tipsContainer: {
+  actionButtons: {
+    flexDirection: 'column', // Changed from 'row' to 'column'
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
+  actionButton: {
+    backgroundColor: '#EA580C',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    width: '100%',
+    marginBottom: 10,
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  cookbookButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    width: '100%',
+    marginBottom: 10,
+  },
+  cookbookButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  deleteButton: {
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    width: '100%',
+    marginBottom: 10,
+  },
+  deleteButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  proTips: {
     alignSelf: 'stretch',
     backgroundColor: '#F3F4F6',
     borderRadius: 8,
     padding: 16,
   },
-  tipsTitle: {
+  proTipsTitle: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#374151',
     marginBottom: 8,
   },
-  tipText: {
+  proTip: {
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
     lineHeight: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#EA580C',
+    marginBottom: 15,
+  },
+  input: {
+    width: '100%',
+    height: 50,
+    borderColor: '#E5E7EB',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    marginBottom: 15,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+  },
+  modalButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 12,
+  },
+  cancelButton: {
+    backgroundColor: '#E5E7EB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  saveButton: {
+    backgroundColor: '#EA580C',
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  deleteWarning: {
+    fontSize: 14,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  deleteConfirmButton: {
+    backgroundColor: '#EF4444',
+  },
+  deleteConfirmButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 }) 
  

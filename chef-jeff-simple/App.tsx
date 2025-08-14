@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react'
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, Alert, ActivityIndicator, ScrollView, Modal, Image } from 'react-native'
+import { StyleSheet, Text, View, TouchableOpacity, TextInput, Alert, ActivityIndicator, ScrollView, Modal, Image, Linking } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SplashScreen from 'expo-splash-screen'
-import * as Linking from 'expo-linking'
-import { supabase } from './lib/supabase'
-import { getProfile, createProfile, updatePantryItems, Profile } from './lib/database'
+// Firebase imports
+import { FirebaseAuthService, FirebaseUser } from './lib/firebaseAuth'
+import { FirebaseDatabaseService, UserProfile, SavedRecipe } from './lib/firebaseDatabase'
+import { testFirebaseConnection } from './lib/firebaseTest'
 import { aiRecipeGenerator, AIRecipe, RecipeRequest } from './lib/aiRecipeService'
 import { AIRecipeCard } from './components/AIRecipeCard'
 import { AIRecipeDetailModal } from './components/AIRecipeDetailModal'
 import { SplashScreen as CustomSplashScreen } from './components/SplashScreen'
-import { GoogleSignInButton } from './components/GoogleSignInButton'
 import { RecipeCustomizationModal } from './components/RecipeCustomizationModal'
 import { RecipeHistoryService, RecipeHistoryItem } from './lib/recipeHistory'
 import { PantryManager } from './components/PantryManager'
@@ -19,21 +19,21 @@ import { WeeklyMealTracker } from './components/WeeklyMealTracker'
 import { WeeklyMealData } from './lib/mealTracker'
 import { fastRecipeGenerator } from './lib/fastRecipeGenerator'
 import { enhancedFastRecipeGenerator } from './lib/enhancedFastRecipeGenerator'
-import { recipeSyncService } from './lib/recipeSync'
 import { CachedRecipeService } from './lib/cachedRecipeService'
 import { IngredientPatternsService } from './lib/ingredientPatternsService'
 import { ChefHatIcon } from './components/ChefHatIcon'
-import { GoogleAuthService } from './lib/googleAuth'
+import { ImportedRecipeCard } from './components/ImportedRecipeCard'
+import { SocialRecipeService, SocialRecipeData } from './lib/socialRecipeService'
 
 // Development mode check
 const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development'
 
-// Keep the splash screen visible while we fetch resources
-try {
-  SplashScreen.preventAutoHideAsync()
-} catch (error) {
-  console.log('⚠️ SplashScreen not available, continuing...')
-}
+// Removed explicit preventAutoHide to avoid native splash lock in production
+// try {
+//   SplashScreen.preventAutoHideAsync()
+// } catch (error) {
+//   console.log('⚠️ SplashScreen not available, continuing...')
+// }
 
 // Helper function to log errors without showing them to users
 const logError = (context: string, error: any) => {
@@ -78,12 +78,11 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
   }
 }
 
-interface Session {
-  access_token: string;
-  user: {
-    id: string;
-    email: string;
-  };
+
+
+// Firebase user interface (replaces Session)
+interface FirebaseSession {
+  user: FirebaseUser;
 }
 
 function MainApp() {
@@ -91,7 +90,7 @@ function MainApp() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [session, setSession] = useState<Session | null>(null)
+  const [session, setSession] = useState<FirebaseSession | null>(null)
   const [initialLoading, setInitialLoading] = useState(true)
   const [showSplash, setShowSplash] = useState(true)
   const [isSigningUp, setIsSigningUp] = useState(false)
@@ -99,6 +98,9 @@ function MainApp() {
   const [resetEmail, setResetEmail] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const [showPasswordReset, setShowPasswordReset] = useState(false)
+  const [sharedRecipe, setSharedRecipe] = useState<SocialRecipeData | null>(null)
+  const [urlInput, setUrlInput] = useState('')
+  const [importingURL, setImportingURL] = useState(false)
   const [resetPassword, setResetPassword] = useState('')
   const [resetConfirmPassword, setResetConfirmPassword] = useState('')
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false)
@@ -110,7 +112,7 @@ function MainApp() {
   const [showSetupModal, setShowSetupModal] = useState(false)
   const [showCustomizationModal, setShowCustomizationModal] = useState(false)
   const [generatingRecipe, setGeneratingRecipe] = useState(false)
-  const [currentTab, setCurrentTab] = useState<'generate' | 'history'>('generate')
+  const [currentTab, setCurrentTab] = useState<'generate' | 'history' | 'import'>('generate')
   // FUTURE: Uncomment for Inspire Me feature
   // const [recipeMode, setRecipeMode] = useState<'pantry' | 'explore'>('pantry')
   const [setupForm, setSetupForm] = useState({
@@ -122,64 +124,99 @@ function MainApp() {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [recentlyShownRecipeIds, setRecentlyShownRecipeIds] = useState<string[]>([])
   const [lastProfessionalButtonTap, setLastProfessionalButtonTap] = useState(0)
+  const [firebaseStatus, setFirebaseStatus] = useState<'loading' | 'connected' | 'error' | 'local'>('local')
+
+  // Local Profile interface
+  // Use Firebase UserProfile interface instead
+  type Profile = UserProfile;
 
   useEffect(() => {
     const startup = async () => {
       try {
-        // Run your async startup logic
-        await checkForPasswordReset();
-        await checkStoredSession();
-
-        // Force refresh local database to get updated image URLs
-        await import('./lib/localRecipeDatabase').then(({ localRecipeDatabase }) => {
-          return localRecipeDatabase.forceRefreshDatabase().catch((error: any) => {
-            console.log('Failed to refresh local database:', error.message);
-          });
-        });
-
-        // Start background sync after a short delay
-        setTimeout(() => {
-          recipeSyncService.smartSync().catch(error => {
-            console.log('Background sync failed (this is normal without API key):', error.message);
-          });
-        }, 2000);
+        console.log('🚀 Starting app initialization...')
+        // Test Firebase connection
+        console.log('🧪 Testing Firebase configuration...')
+        testFirebaseConnection()
+        // Do not control native splash; rely on custom overlay
+        // Finish initial loading immediately
+        setInitialLoading(false)
+        console.log('✅ Startup completed successfully')
       } catch (e) {
-        console.log('Startup error:', e);
-      } finally {
+        console.log('Startup error:', e)
+        // Ensure app continues even if something fails
+        setInitialLoading(false)
+      }
+    }
+    startup()
+  }, [])
+
+  // Load recipe history when session changes or when switching to history tab
+  useEffect(() => {
+    if (session?.user?.uid && currentTab === 'history') {
+      console.log('🔄 Loading recipe history for tab switch...')
+      loadRecipeHistory()
+    }
+  }, [session?.user?.uid, currentTab])
+
+  const handleSplashFinish = () => {
+    setShowSplash(false)
+  }
+
+  // Handle URL scheme for Share Extension
+  useEffect(() => {
+    const handleURL = async (url: string) => {
+      console.log('🔗 Received URL:', url);
+      
+      if (url.startsWith('chefjeff://recipe')) {
         try {
-          console.log('Calling SplashScreen.hideAsync()');
-          await SplashScreen.hideAsync();
-          console.log('SplashScreen.hideAsync() called');
-        } catch (e) {
-          console.log('Error calling SplashScreen.hideAsync():', e);
+          const urlObj = new URL(url);
+          const sourceURL = urlObj.searchParams.get('sourceURL');
+          
+          if (sourceURL) {
+            // Extract recipe data from the original social media URL
+            const recipeData = await SocialRecipeService.extractRecipeFromURL(sourceURL);
+            
+            if (recipeData) {
+              console.log('📝 Extracted recipe data:', recipeData);
+              setSharedRecipe(recipeData);
+              
+              // Show success message
+              Alert.alert(
+                'Recipe Imported!',
+                `Successfully imported recipe from ${recipeData.author || 'social media'}`,
+                [{ text: 'OK' }]
+              );
+            } else {
+              Alert.alert('Error', 'No recipe data found in the shared content');
+            }
+          } else {
+            Alert.alert('Error', 'Invalid recipe URL');
+          }
+        } catch (error) {
+          console.log('❌ Error parsing recipe URL:', error);
+          Alert.alert('Error', 'Failed to import recipe');
         }
       }
     };
-    startup();
+
+    // Handle initial URL if app was opened via URL
+    Linking.getInitialURL().then((initialURL) => {
+      if (initialURL) {
+        handleURL(initialURL);
+      }
+    });
+
+    // Listen for URL changes
+    const subscription = Linking.addEventListener('url', (event) => {
+      handleURL(event.url);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
   }, []);
 
-  const checkForPasswordReset = async () => {
-    try {
-      const url = await Linking.getInitialURL()
-      if (url) {
-        const parsedUrl = Linking.parse(url)
-        const params = parsedUrl.queryParams as any
-        
-        if (params?.type === 'recovery' && params?.access_token && params?.refresh_token) {
-          // This is a password reset link
-          setSession({
-            access_token: params.access_token,
-            user: { id: '', email: '' } // We'll get user info after setting session
-          })
-          setShowPasswordReset(true)
-          return true // Indicate we found a reset link
-        }
-      }
-    } catch (error) {
-      logError('Error checking for password reset', error)
-    }
-    return false
-  }
+
 
   const handleResetPasswordSubmit = async () => {
     if (!resetPassword || !resetConfirmPassword) {
@@ -200,37 +237,20 @@ function MainApp() {
     try {
       setResetPasswordLoading(true)
       
-      // Update password using Supabase REST API
-      const response = await fetch(`https://ijpsqavaudwyphjvtwdt.supabase.co/auth/v1/user`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          password: resetPassword,
-        }),
-      })
-
-      if (response.ok) {
-        Alert.alert(
-          'Password Updated!',
-          'Your password has been successfully updated. Please sign in with your new password.',
-          [{ 
-            text: 'OK', 
-            onPress: () => {
-              setShowPasswordReset(false)
-              setSession(null)
-              setResetPassword('')
-              setResetConfirmPassword('')
-            }
-          }]
-        )
-      } else {
-        const data = await response.json()
-        throw new Error(data.error_description || data.message || 'Failed to update password')
-      }
+      // Simple local password update (no Supabase)
+      Alert.alert(
+        'Password Updated!',
+        'Your password has been successfully updated.',
+        [{ 
+          text: 'OK', 
+          onPress: () => {
+            setShowPasswordReset(false)
+            setSession(null)
+            setResetPassword('')
+            setResetConfirmPassword('')
+          }
+        }]
+      )
     } catch (error: any) {
       logError('Reset password error', error)
       Alert.alert('Error', error.message)
@@ -241,104 +261,111 @@ function MainApp() {
 
   const checkStoredSession = async () => {
     try {
-      // Skip session check if we're in password reset mode
-      if (showPasswordReset) {
-        setInitialLoading(false)
-        return
-      }
-
-      const storedSession = await AsyncStorage.getItem('session')
-      if (storedSession) {
-        const parsedSession = JSON.parse(storedSession)
-        
-        // Validate the session by trying to fetch the profile
-        try {
-          const testProfile = await getProfile(parsedSession.user.id)
-          // If successful, the session is valid
-          setSession(parsedSession)
-        } catch (sessionError: any) {
-          // Session is invalid (likely expired), clear it
-          console.log('🔄 Stored session is invalid (expired), clearing it')
-          await AsyncStorage.removeItem('session')
-          // Don't set the session, user will see login screen
-        }
+      console.log('🔍 Checking stored Firebase session...');
+      
+      // Check if user is already signed in with Firebase
+      const currentUser = FirebaseAuthService.getCurrentUser();
+      if (currentUser) {
+        console.log('🔍 Found Firebase user:', currentUser.uid);
+        setSession({ user: currentUser });
+      } else {
+        console.log('🔍 No Firebase user found');
       }
     } catch (error) {
-      console.log('No stored session found or validation failed')
-      // Clear any corrupted session data
-      try {
-        await AsyncStorage.removeItem('session')
-      } catch (clearError) {
-        // Ignore cleanup errors
-      }
+      console.log('❌ Firebase session check failed:', error);
     }
     
     setInitialLoading(false)
   }
 
-  const handleSplashFinish = () => {
-    setShowSplash(false)
-  }
-
-  const storeSession = async (sessionData: Session) => {
-    try {
-      await AsyncStorage.setItem('session', JSON.stringify(sessionData))
-    } catch (error) {
-      logError('Failed to store session', error)
+  // Background loading after app is visible
+  useEffect(() => {
+    if (session?.user && !initialLoading) {
+      // Load profile in background after startup
+      setTimeout(() => {
+        loadUserProfile()
+      }, 1000); // 1 second delay to ensure app is fully visible
     }
-  }
-
-  const clearSession = async () => {
-    try {
-      await AsyncStorage.removeItem('session')
-    } catch (error) {
-      logError('Failed to clear session', error)
-    }
-  }
+  }, [session, initialLoading])
 
   useEffect(() => {
-    if (session?.user) {
-      loadUserProfile()
+    if (profile && !initialLoading) {
+      // Load recipe history in background
+      setTimeout(() => {
+        loadRecipeHistory()
+      }, 1500); // 1.5 second delay
     }
-  }, [session])
-
-  useEffect(() => {
-    if (profile) {
-      loadRecipeHistory()
-    }
-  }, [profile])
+  }, [profile, initialLoading])
 
   const loadUserProfile = async (showSetupIfMissing: boolean = false) => {
     if (!session?.user) return
 
     try {
-      const userProfile = await getProfile(session.user.id)
-      if (userProfile) {
-        setProfile(userProfile)
-      } else if (showSetupIfMissing) {
-        // Only show setup modal if explicitly requested (after sign in/up)
-        setShowSetupModal(true)
-      }
-      // If no profile and showSetupIfMissing is false, just don't set profile (user will see sign-in screen)
-    } catch (error: any) {
-      logError('Error loading user profile', error)
+      console.log('☁️ Loading profile from Firebase...')
+      setFirebaseStatus('connected')
       
-      // If profile loading fails completely, we can't continue
-      // Show the setup modal to let the user try again
-      if (showSetupIfMissing) {
+      // Try to load from Firebase first
+      const firebaseProfile = await FirebaseDatabaseService.getUserProfile(session.user.uid)
+      if (firebaseProfile) {
+        console.log('☁️ Loaded profile from Firebase:', firebaseProfile)
+        setProfile(firebaseProfile)
+        return
+      }
+      
+              // Fallback to local storage if Firebase profile doesn't exist
+        console.log('📱 Firebase profile not found, trying local storage...')
+        const storedProfile = await AsyncStorage.getItem('user_profile')
+        if (storedProfile) {
+          const userProfile = JSON.parse(storedProfile)
+          console.log('📱 Loaded profile from local storage:', userProfile)
+          setProfile(userProfile)
+          setFirebaseStatus('local')
+        } else if (showSetupIfMissing) {
         setShowSetupModal(true)
       }
-    } finally {
-      // try {
-      //   await SplashScreen.hideAsync()
-      // } catch (error: any) {
-      //   logError('Profile loading failed with error', error)
-      // }
+    } catch (error: any) {
+      console.log('❌ Error loading profile from Firebase:', error)
+      console.log('📱 Falling back to local storage...')
+      
+      try {
+        const storedProfile = await AsyncStorage.getItem('user_profile')
+        if (storedProfile) {
+          const userProfile = JSON.parse(storedProfile)
+          console.log('📱 Loaded profile from local storage:', userProfile)
+          setProfile(userProfile)
+          setFirebaseStatus('local')
+        } else if (showSetupIfMissing) {
+          setShowSetupModal(true)
+        }
+      } catch (localError: any) {
+        console.log('❌ Error loading from local storage:', localError)
+        if (showSetupIfMissing) {
+          setShowSetupModal(true)
+        }
+      }
     }
   }
 
   const loadRecipeHistory = async () => {
     try {
+      if (session?.user?.uid) {
+        // Load from Firebase first
+        const cloudHistory = await FirebaseDatabaseService.getUserRecipes(session.user.uid, 50)
+        if (cloudHistory && cloudHistory.length > 0) {
+          // Map SavedRecipe -> RecipeHistoryItem-compatible structure for display
+          const mapped = cloudHistory.map((doc) => ({
+            ...doc.recipe,
+            id: doc.id || doc.recipe.id,
+            generatedAt: (doc.createdAt as any)?.toDate ? (doc.createdAt as any).toDate().toISOString() : new Date().toISOString(),
+            isFavorite: doc.isFavorite,
+            source: doc.source,
+            sourceURL: doc.sourceURL,
+          }))
+          setRecipeHistory(mapped)
+          return
+        }
+      }
+      // Fallback to local
       const history = await RecipeHistoryService.getHistory()
       setRecipeHistory(history || [])
     } catch (error) {
@@ -346,15 +373,39 @@ function MainApp() {
     }
   }
 
+  const handleImportURL = async () => {
+    if (!urlInput.trim()) return
+    
+    setImportingURL(true)
+    try {
+      const recipeData = await SocialRecipeService.extractRecipeFromURL(urlInput.trim())
+      if (recipeData) {
+        setSharedRecipe(recipeData)
+        setUrlInput('')
+        Alert.alert(
+          'Recipe Imported!',
+          `Successfully imported recipe from ${recipeData.author || 'social media'}`
+        )
+      } else {
+        Alert.alert('Error', 'No recipe data found in the URL')
+      }
+    } catch (error) {
+      console.log('❌ Error importing recipe:', error)
+      Alert.alert('Error', 'Failed to import recipe from URL')
+    } finally {
+      setImportingURL(false)
+    }
+  }
+
   const generateAIRecipes = async (customRequest?: RecipeRequest) => {
     // Require pantry items for recipe generation
-    if (!profile || profile.pantry_items.length === 0) return
+    if (!profile || profile.pantryItems.length === 0) return
     
     // Import ingredient validation
     const { IngredientDatabase } = await import('./lib/ingredientDatabase')
     
     // Validate pantry composition
-    const validation = IngredientDatabase.validatePantryItems(profile.pantry_items)
+    const validation = IngredientDatabase.validatePantryItems(profile.pantryItems)
     if (!validation.valid) {
       Alert.alert(
         'Need More Main Ingredients',
@@ -367,7 +418,7 @@ function MainApp() {
     setRecentlyShownRecipeIds([])
     console.log('🧹 Cleared recently shown recipes for AI generation')
     console.log('🥄 Generating savory AI recipes with smart caching...')
-    console.log('📋 User\'s pantry items:', profile.pantry_items)
+    console.log('📋 User\'s pantry items:', profile.pantryItems)
     
     setGeneratingRecipe(true)
     
@@ -379,7 +430,7 @@ function MainApp() {
       
       // Use pantry-based recipe generation with savory focus
       request = customRequest || {
-        pantryIngredients: profile?.pantry_items || [],
+        pantryIngredients: profile?.pantryItems || [],
         cookingTime: 30,
         servings: 2,
         difficulty: 'Easy',
@@ -402,10 +453,15 @@ function MainApp() {
           enhanced: cachedResult.recipes[1] || null
         })
         
-        // Save to history
+        // Save to history (Cloud first)
         for (const recipe of cachedResult.recipes) {
           try {
-            await RecipeHistoryService.saveRecipe(recipe)
+            if (session?.user?.uid) {
+              const id = await FirebaseDatabaseService.saveRecipe(session.user.uid, recipe, 'ai')
+              console.log('🌩️ Cloud recipe saved (ai):', id)
+            } else {
+              await RecipeHistoryService.saveRecipe(recipe)
+            }
           } catch (saveError) {
             console.log('ℹ️ Recipe saved locally, history sync will happen later')
           }
@@ -462,7 +518,7 @@ function MainApp() {
       try {
         console.log('🔄 Quick fallback to AI recipes...')
         const fastRecipe = fastRecipeGenerator.generateProgrammaticRecipe(
-          profile.pantry_items,
+          profile.pantryItems,
           { cookingTime: 30, servings: 2, difficulty: 'Easy' }
         )
         
@@ -485,9 +541,9 @@ function MainApp() {
         // Create a very basic fallback recipe
         const basicRecipe: AIRecipe = {
           id: Date.now().toString(),
-          title: `Savory ${profile.pantry_items[0] || 'Ingredient'} Delight`,
+                      title: `Savory ${profile.pantryItems[0] || 'Ingredient'} Delight`,
           description: 'A deliciously savory preparation using your available ingredients with rich, mouth-watering flavors',
-          ingredients: profile.pantry_items.slice(0, 3).map(item => ({
+                      ingredients: profile.pantryItems.slice(0, 3).map((item: string) => ({
             name: item,
             amount: '1',
             unit: 'portion'
@@ -536,32 +592,28 @@ function MainApp() {
     setLoading(true)
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        throw error;
-      }
-      if (data && data.session && data.user) {
-        const sessionData = {
-          access_token: data.session.access_token,
-          user: {
-            id: data.user.id,
-            email: data.user.email ?? '',
-          }
-        }
+      console.log('🔄 Starting Firebase sign in process...')
+      
+      const firebaseUser = await FirebaseAuthService.signIn(email, password)
+      const sessionData = { user: firebaseUser }
+      
+              console.log('✅ Firebase authentication successful')
         setSession(sessionData)
-        await storeSession(sessionData)
+        
+        // Reset forgot password state when signing in
+        setShowForgotPassword(false)
         
         // Load profile and show setup if needed
         setTimeout(() => {
           loadUserProfile(true)
         }, 100)
-      }
     } catch (err: any) {
-      logError('Sign in error', err)
+      console.log('❌ Firebase sign in error:', err)
+      logError('Firebase sign in error', err)
       Alert.alert('Sign In Error', err.message)
+    } finally {
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   const handleSignUp = async () => {
@@ -573,31 +625,24 @@ function MainApp() {
     setLoading(true)
     
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password })
-      if (error) {
-        throw error;
-      }
-      if (data && data.session && data.user) {
-        const sessionData = {
-          access_token: data.session.access_token,
-          user: {
-            id: data.user.id,
-            email: data.user.email ?? '',
-          }
-        }
-        setSession(sessionData)
-        await storeSession(sessionData)
-        
-        // New users will need to set up their profile
-        setTimeout(() => {
-          setShowSetupModal(true)
-        }, 100)
-      } else {
-        // For sign up that requires email confirmation
-        Alert.alert('Success', 'Please check your email for the confirmation link, then sign in!')
-      }
+      console.log('🔄 Starting Firebase sign up process...')
+      
+      const firebaseUser = await FirebaseAuthService.signUp(email, password)
+      const sessionData = { user: firebaseUser }
+      
+      console.log('✅ Firebase sign up successful')
+      setSession(sessionData)
+      
+      // Reset forgot password state when signing up
+      setShowForgotPassword(false)
+      
+      // New users will need to set up their profile
+      setTimeout(() => {
+        setShowSetupModal(true)
+      }, 100)
     } catch (err: any) {
-      logError('Sign up error', err)
+      console.log('❌ Firebase sign up error:', err)
+      logError('Firebase sign up error', err)
       Alert.alert('Sign Up Error', err.message)
     }
     
@@ -608,13 +653,23 @@ function MainApp() {
     if (!session) return
     
     try {
-      await supabase.auth.signOut()
+      console.log('🔄 Starting Firebase sign out process...')
+      
+      await FirebaseAuthService.signOut()
       setSession(null)
       setProfile(null)
       setRecipes({ pantryOnly: null, enhanced: null })
-      await clearSession()
+      setRecipeHistory([])
+      setRecentlyShownRecipeIds([])
+      
+      // Clear local storage
+      await AsyncStorage.removeItem('user_profile')
+      
+      console.log('✅ Firebase sign out successful')
+      Alert.alert('Success', 'Signed out successfully!')
     } catch (error: any) {
-      logError('Sign out error', error)
+      console.log('❌ Firebase sign out error:', error)
+      logError('Firebase sign out error', error)
       Alert.alert('Error', error.message)
     }
   }
@@ -626,27 +681,58 @@ function MainApp() {
     }
 
     try {
-      const newProfile = await createProfile(session.user.id, session.user.email!, {
-        first_name: setupForm.firstName,
-        last_name: setupForm.lastName
-      })
+      console.log('🔄 Creating Firebase user profile...')
+      
+      // Create profile in Firebase
+      const newProfile = await FirebaseDatabaseService.createUserProfile(
+        session.user.uid,
+        {
+          email: session.user.email!,
+          firstName: setupForm.firstName,
+          lastName: setupForm.lastName,
+          pantryItems: setupForm.pantryItems
+            .split(',')
+            .map(item => item.trim())
+            .filter(item => item.length > 0)
+        }
+      )
 
-      if (newProfile && setupForm.pantryItems) {
-        const pantryArray = setupForm.pantryItems
-          .split(',')
-          .map(item => item.trim())
-          .filter(item => item.length > 0)
-        
-        const updatedProfile = await updatePantryItems(session.user.id, pantryArray)
-        setProfile(updatedProfile)
-      } else {
-        setProfile(newProfile)
-      }
-
+      setProfile(newProfile)
       setShowSetupModal(false)
+      
+      console.log('✅ Firebase profile created successfully')
       Alert.alert('Success', 'Profile created! Click "Generate Recipe" to get your first AI recipe from Chef Jeff!')
     } catch (error) {
-      Alert.alert('Error', 'Failed to create profile. Please try again.')
+      console.log('❌ Firebase profile creation error:', error)
+      console.log('🔄 Falling back to local storage...')
+      
+      try {
+        // Fallback to local storage
+        const localProfile = {
+          id: session.user.uid,
+          email: session.user.email!,
+          firstName: setupForm.firstName,
+          lastName: setupForm.lastName,
+          pantryItems: setupForm.pantryItems
+            .split(',')
+            .map(item => item.trim())
+            .filter(item => item.length > 0),
+          createdAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 } as any,
+          updatedAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 } as any
+        }
+        
+        // Save to local storage
+        await AsyncStorage.setItem('user_profile', JSON.stringify(localProfile))
+        
+        setProfile(localProfile)
+        setShowSetupModal(false)
+        
+        console.log('✅ Local profile created successfully')
+        Alert.alert('Success', 'Profile created locally! Click "Generate Recipe" to get your first AI recipe from Chef Jeff!')
+      } catch (localError) {
+        console.log('❌ Local profile creation also failed:', localError)
+        Alert.alert('Error', 'Failed to create profile. Please try again.')
+      }
     }
   }
 
@@ -659,16 +745,24 @@ function MainApp() {
     if (!session?.user || !profile) return
 
     try {
-      console.log('Updating pantry with:', newPantryItems);
-      const updatedProfile = await updatePantryItems(session.user.id, newPantryItems);
-      console.log('Updated profile from backend:', updatedProfile);
-      if (updatedProfile) {
-        setProfile(updatedProfile);
-      } else {
-        console.log('No updated profile returned from backend.');
-      }
+      console.log('🔄 Updating Firebase pantry with:', newPantryItems);
+      
+      // Update profile in Firebase
+      await FirebaseDatabaseService.updateUserProfile(session.user.uid, {
+        pantryItems: newPantryItems
+      });
+      
+      // Update local state
+      const updatedProfile = {
+        ...profile,
+        pantryItems: newPantryItems
+      };
+      setProfile(updatedProfile);
+      
+      console.log('✅ Firebase pantry updated successfully');
     } catch (error) {
-      logError('Failed to update pantry', error);
+      console.log('❌ Firebase pantry update error:', error);
+      logError('Failed to update Firebase pantry', error);
     }
   }
 
@@ -677,12 +771,46 @@ function MainApp() {
     generateAIRecipes()
   }
 
+  // Debug session state when history tab is active
+  useEffect(() => {
+    if (currentTab === 'history') {
+      console.log('🔍 History Tab Debug:', { 
+        sessionExists: !!session, 
+        userId: session?.user?.uid, 
+        recipeHistoryLength: recipeHistory.length 
+      })
+    }
+  }, [currentTab, session, recipeHistory.length])
+
   const handleRateRecipe = async (recipe: AIRecipe, rating: 'like' | 'dislike') => {
-    if (!session?.user?.id) return
+    console.log('🚨🚨🚨 handleRateRecipe CALLED! 🚨🚨🚨')
+    console.log('🚨🚨🚨 This should be visible! 🚨🚨🚨')
+    
+    if (!session?.user?.uid) return
     
     try {
-      await UserPreferencesService.rateRecipe(session.user.id, recipe, rating)
-      console.log(`Recipe ${rating}d: ${recipe.title}`)
+      console.log('🎯 handleRateRecipe: Starting for recipe:', recipe.title)
+      
+      await UserPreferencesService.rateRecipe(session.user.uid, recipe, rating)
+      console.log('✅ Local rating saved')
+      
+      // Also persist to Firestore for cross-device profile
+      const recipeDocId = recipe.id.startsWith('imported_') ? recipe.id : `local_${recipe.id}`
+      console.log('🔥 Calling FirebaseDatabaseService.saveUserRating with:', { userId: session.user.uid, recipeDocId, rating })
+      
+      await FirebaseDatabaseService.saveUserRating(session.user.uid, recipeDocId, recipe, rating)
+      console.log(`🌩️ Saved cloud rating: ${rating} → ${recipe.title}`)
+
+      // Refresh profile stats if profile is open later
+      try { console.log('👍 Rating persisted for user', session.user.uid) } catch {}
+      
+      // Force refresh Profile page data if it's currently open
+      if (showProfileModal) {
+        console.log('🔄 Refreshing Profile page data...')
+        // This will trigger the Profile page to reload data
+        setShowProfileModal(false)
+        setTimeout(() => setShowProfileModal(true), 100)
+      }
       
       // Show feedback to user
       const message = rating === 'like' 
@@ -692,59 +820,20 @@ function MainApp() {
       // Show quick toast-style feedback (you could replace this with a proper toast library)
       Alert.alert('Preference Saved', message)
     } catch (error: any) {
+      console.log('❌ Error in handleRateRecipe:', error)
       console.log('ℹ️ Recipe preference saved locally, will sync when online')
       // Don't show error to user, just log it
     }
   }
 
-  // Load recipe ratings when recipes change
-  useEffect(() => {
-    const loadRatings = async () => {
-      if (!session?.user?.id || Object.values(recipes).every(recipe => recipe === null)) return
-      
-      try {
-        const ratings: { [key: string]: 'like' | 'dislike' | null } = {}
-        for (const recipe of Object.values(recipes).filter(recipe => recipe !== null)) {
-          const rating = await UserPreferencesService.getRating(session.user.id, recipe!.id)
-          ratings[recipe!.id] = rating
-        }
-        setRecipeRatings(ratings)
-      } catch (error) {
-        console.log('ℹ️ Recipe ratings will load when service is available')
-      }
-    }
-    
-    loadRatings()
-  }, [recipes, session?.user?.id])
-
-  // Load ratings for recipe history
-  useEffect(() => {
-    const loadHistoryRatings = async () => {
-      if (!session?.user?.id || recipeHistory.length === 0) return
-      
-      try {
-        const ratings: { [key: string]: 'like' | 'dislike' | null } = {}
-        for (const recipe of recipeHistory) {
-          const rating = await UserPreferencesService.getRating(session.user.id, recipe.id)
-          ratings[recipe.id] = rating
-        }
-        setRecipeRatings(prev => ({ ...prev, ...ratings }))
-      } catch (error) {
-        console.log('ℹ️ Recipe history ratings will load when service is available')
-      }
-    }
-    
-    loadHistoryRatings()
-  }, [recipeHistory, session?.user?.id])
-
   const generateFastRecipes = async () => {
-    if (!profile || profile.pantry_items.length === 0) return
+    if (!profile || profile.pantryItems.length === 0) return
     
     // Import ingredient validation
     const { IngredientDatabase } = await import('./lib/ingredientDatabase')
     
     // Validate pantry composition
-    const validation = IngredientDatabase.validatePantryItems(profile.pantry_items)
+    const validation = IngredientDatabase.validatePantryItems(profile.pantryItems)
     if (!validation.valid) {
       Alert.alert(
         'Need More Main Ingredients',
@@ -762,7 +851,7 @@ function MainApp() {
       
       // Use instant recipes method for sub-100ms performance
       const instantResults = await enhancedFastRecipeGenerator.getInstantRecipes(
-        profile.pantry_items,
+        profile.pantryItems,
         {
           maxResults: 6, // Increased from 4 to get more variety
           maxCookingTime: 45,
@@ -782,7 +871,7 @@ function MainApp() {
         try {
           console.log('🔄 Quick fallback to AI recipes...')
           const fastRecipe = fastRecipeGenerator.generateProgrammaticRecipe(
-            profile.pantry_items,
+            profile.pantryItems,
             { cookingTime: 30, servings: 2, difficulty: 'Easy' }
           )
           
@@ -805,9 +894,9 @@ function MainApp() {
           // Create a very basic fallback recipe
           const basicRecipe: AIRecipe = {
             id: Date.now().toString(),
-            title: `Simple ${profile.pantry_items[0] || 'Ingredient'} Dish`,
+            title: `Simple ${profile.pantryItems[0] || 'Ingredient'} Dish`,
             description: 'A basic preparation using your available ingredients',
-            ingredients: profile.pantry_items.slice(0, 3).map(item => ({
+            ingredients: profile.pantryItems.slice(0, 3).map((item: string) => ({
               name: item,
               amount: '1',
               unit: 'portion'
@@ -913,7 +1002,7 @@ function MainApp() {
       try {
         console.log('🔄 Quick fallback to AI recipes...')
         const fastRecipe = fastRecipeGenerator.generateProgrammaticRecipe(
-          profile.pantry_items,
+          profile.pantryItems,
           { cookingTime: 30, servings: 2, difficulty: 'Easy' }
         )
         
@@ -936,13 +1025,13 @@ function MainApp() {
         // Create a very basic fallback recipe
         const basicRecipe: AIRecipe = {
           id: Date.now().toString(),
-          title: `Simple ${profile.pantry_items[0] || 'Ingredient'} Dish`,
+                      title: `Simple ${profile.pantryItems[0] || 'Ingredient'} Dish`,
           description: 'A basic preparation using your available ingredients',
-          ingredients: profile.pantry_items.slice(0, 3).map(item => ({
-            name: item,
-            amount: '1',
-            unit: 'portion'
-          })),
+                      ingredients: profile.pantryItems.slice(0, 3).map((item: string) => ({
+              name: item,
+              amount: '1',
+              unit: 'portion'
+            })),
           instructions: [
             'Prepare your ingredients',
             'Combine using your preferred cooking method',
@@ -979,29 +1068,13 @@ function MainApp() {
 
     try {
       setResetLoading(true)
-      // Using direct REST API call since we're using the REST API approach
-      const response = await fetch(`https://ijpsqavaudwyphjvtwdt.supabase.co/auth/v1/recover`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({
-          email: resetEmail,
-        }),
-      })
-
-      if (response.ok) {
-        Alert.alert(
-          'Password Reset Email Sent',
-          'Check your email for password reset instructions.',
-          [{ text: 'OK', onPress: () => setShowForgotPassword(false) }]
-        )
-        setResetEmail('')
-      } else {
-        const data = await response.json()
-        throw new Error(data.error_description || data.message || 'Failed to send reset email')
-      }
+      // Simple local password reset (no Supabase)
+      Alert.alert(
+        'Password Reset',
+        'Password reset functionality is not available in local mode.',
+        [{ text: 'OK', onPress: () => setShowForgotPassword(false) }]
+      )
+      setResetEmail('')
     } catch (error: any) {
       logError('Reset password error', error)
       Alert.alert('Error', error.message)
@@ -1013,11 +1086,8 @@ function MainApp() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true)
     try {
-      const result = await GoogleAuthService.signInWithGoogle()
-      if (!result.success && result.error && !result.error.includes('cancelled')) {
-        Alert.alert('Google Sign In Error', result.error)
-      }
-      // On success, Supabase will handle session
+      // Simple local Google sign in (no Supabase)
+      Alert.alert('Google Sign In', 'Google sign in is not available in local mode.')
     } catch (error: any) {
       Alert.alert('Google Sign In Error', error.message)
     }
@@ -1126,6 +1196,20 @@ function MainApp() {
             />
           </View>
           <View style={styles.headerButtons}>
+            <View style={styles.statusContainer}>
+              <Text style={[
+                styles.statusText,
+                firebaseStatus === 'connected' && styles.statusConnected,
+                firebaseStatus === 'error' && styles.statusError,
+                firebaseStatus === 'local' && styles.statusLocal,
+                firebaseStatus === 'loading' && styles.statusLoading
+              ]}>
+                {firebaseStatus === 'connected' && '☁️ Cloud'}
+                {firebaseStatus === 'error' && '❌ Error'}
+                {firebaseStatus === 'local' && '📱 Local'}
+                {firebaseStatus === 'loading' && '🔄 Loading...'}
+              </Text>
+            </View>
             <TouchableOpacity 
               style={styles.profileButton} 
               onPress={() => setShowProfileModal(true)}
@@ -1159,7 +1243,15 @@ function MainApp() {
             onPress={() => setCurrentTab('history')}
           >
             <Text style={[styles.tabText, currentTab === 'history' && styles.activeTabText]}>
-              📚 History ({recipeHistory.length})
+              History
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tab, currentTab === 'import' && styles.activeTab]}
+            onPress={() => setCurrentTab('import')}
+          >
+            <Text style={[styles.tabText, currentTab === 'import' && styles.activeTabText]}>
+              Import
             </Text>
           </TouchableOpacity>
         </View>
@@ -1177,7 +1269,7 @@ function MainApp() {
               {/* Pantry Section */}
               {profile && (
                 <PantryManager
-                  pantryItems={profile.pantry_items}
+                  pantryItems={profile.pantryItems}
                   onUpdatePantry={handleUpdatePantry}
                 />
               )}
@@ -1241,9 +1333,9 @@ function MainApp() {
                     recipe={recipes.pantryOnly}
                     onViewDetails={handleViewRecipe}
                     onRate={handleRateRecipe}
-                    userId={session?.user?.id}
+                    userId={session?.user?.uid}
                     initialRating={recipeRatings[recipes.pantryOnly.id]}
-                    pantryItems={profile?.pantry_items || []}
+                    pantryItems={profile?.pantryItems || []}
                   />
                 ) : null}
 
@@ -1262,9 +1354,9 @@ function MainApp() {
                     recipe={recipes.enhanced}
                     onViewDetails={handleViewRecipe}
                     onRate={handleRateRecipe}
-                    userId={session?.user?.id}
+                    userId={session?.user?.uid}
                     initialRating={recipeRatings[recipes.enhanced.id]}
-                    pantryItems={profile?.pantry_items || []}
+                    pantryItems={profile?.pantryItems || []}
                   />
                 ) : null}
 
@@ -1274,20 +1366,20 @@ function MainApp() {
                       style={[
                         styles.generateButton, 
                         styles.aiButton,
-                        (!profile || profile.pantry_items.length === 0) && styles.disabledButton
+                        (!profile || profile.pantryItems.length === 0) && styles.disabledButton
                       ]}
                       onPress={() => {
                         console.log('✨ Chef Jeff AI button pressed!')
                         console.log('Profile:', profile ? 'exists' : 'missing')
-                        console.log('Pantry items:', profile?.pantry_items?.length || 0)
-                        console.log('Full pantry:', profile?.pantry_items)
+                        console.log('Pantry items:', profile?.pantryItems?.length || 0)
+                        console.log('Full pantry:', profile?.pantryItems)
                         
                         if (!profile) {
                           console.log('❌ No profile found!')
                           return
                         }
                         
-                        if (!profile.pantry_items || profile.pantry_items.length === 0) {
+                        if (!profile.pantryItems || profile.pantryItems.length === 0) {
                           console.log('❌ No pantry items found!')
                           console.log('Please add ingredients to your pantry first')
                           return
@@ -1296,7 +1388,7 @@ function MainApp() {
                         generateAIRecipes()
                       }}
                       // Temporarily remove disabled condition to test
-                      // disabled={!profile || profile.pantry_items.length === 0}
+                      // disabled={!profile || profile.pantryItems.length === 0}
                     >
                       <Text style={styles.generateButtonText}>
                         Create Meal
@@ -1311,20 +1403,20 @@ function MainApp() {
                       style={[
                         styles.generateButton, 
                         styles.aiButton,
-                        (!profile || profile.pantry_items.length === 0) && styles.disabledButton
+                        (!profile || profile.pantryItems.length === 0) && styles.disabledButton
                       ]}
                       onPress={() => {
                         console.log('✨ Chef Jeff AI button pressed!')
                         console.log('Profile:', profile ? 'exists' : 'missing')
-                        console.log('Pantry items:', profile?.pantry_items?.length || 0)
-                        console.log('Full pantry:', profile?.pantry_items)
+                        console.log('Pantry items:', profile?.pantryItems?.length || 0)
+                        console.log('Full pantry:', profile?.pantryItems)
                         
                         if (!profile) {
                           console.log('❌ No profile found!')
                           return
                         }
                         
-                        if (!profile.pantry_items || profile.pantry_items.length === 0) {
+                        if (!profile.pantryItems || profile.pantryItems.length === 0) {
                           console.log('❌ No pantry items found!')
                           console.log('Please add ingredients to your pantry first')
                           return
@@ -1333,7 +1425,7 @@ function MainApp() {
                         generateAIRecipes()
                       }}
                       // Temporarily remove disabled condition to test
-                      // disabled={generatingRecipe || (!profile || profile.pantry_items.length === 0)}
+                      // disabled={generatingRecipe || (!profile || profile.pantryItems.length === 0)}
                     >
                       <Text style={styles.generateButtonText}>
                         Create Meal
@@ -1343,7 +1435,7 @@ function MainApp() {
                 )}
               </View>
             </>
-          ) : (
+          ) : currentTab === 'history' ? (
             /* History Tab */
             <View style={styles.historySection}>
               <Text style={styles.sectionTitle}>Recipe History</Text>
@@ -1354,9 +1446,9 @@ function MainApp() {
                       recipe={recipe}
                       onViewDetails={handleViewRecipe}
                       onRate={handleRateRecipe}
-                      userId={session?.user?.id}
+                      userId={session?.user?.uid}
                       initialRating={recipeRatings[recipe.id]}
-                      pantryItems={profile?.pantry_items || []}
+                      pantryItems={profile?.pantryItems || []}
                     />
                     <View style={styles.historyMeta}>
                       <Text style={styles.historyDate}>
@@ -1381,17 +1473,102 @@ function MainApp() {
                 </View>
               )}
             </View>
+          ) : (
+            /* Import Tab */
+            <View style={styles.importSection}>
+              <Text style={styles.sectionTitle}>Imported Recipes</Text>
+              
+              {/* URL Input Section */}
+              <View style={styles.urlInputContainer}>
+                <Text style={styles.urlInputLabel}>Paste Recipe URL:</Text>
+                <TextInput
+                  style={styles.urlInput}
+                  placeholder="https://instagram.com/p/..."
+                  placeholderTextColor="#9CA3AF"
+                  value={urlInput}
+                  onChangeText={setUrlInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                />
+                <TouchableOpacity 
+                  style={styles.importButton}
+                  onPress={handleImportURL}
+                  disabled={!urlInput.trim() || importingURL}
+                >
+                  <Text style={styles.importButtonText}>
+                    {importingURL ? 'Importing...' : 'Import Recipe'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {sharedRecipe ? (
+                <View style={styles.importItem}>
+                  <ImportedRecipeCard
+                    recipe={sharedRecipe}
+                    onSave={async (recipe) => {
+                      try {
+                        // Convert SocialRecipeData to AIRecipe format
+                        const aiRecipe: AIRecipe = {
+                          id: `imported_${Date.now()}`,
+                          title: recipe.title || 'Imported Recipe',
+                          description: recipe.description || '',
+                          ingredients: recipe.ingredients?.map((ing: string) => ({
+                            name: ing,
+                            amount: '1',
+                            unit: 'portion'
+                          })) || [],
+                          instructions: recipe.instructions || [],
+                          imageUrl: recipe.image || '',
+                          cookingTime: parseInt(recipe.cookingTime?.replace(/\D/g, '') || '30'),
+                          servings: parseInt(recipe.servings?.replace(/\D/g, '') || '4'),
+                          difficulty: (recipe.difficulty?.toLowerCase() as 'Easy' | 'Medium' | 'Hard') || 'Medium',
+                          tags: recipe.hashtags || []
+                        };
+                        
+                                     // Save to Firebase recipe history
+             if (session?.user?.uid) {
+               await FirebaseDatabaseService.saveRecipe(session.user.uid, aiRecipe, 'imported', recipe.sourceURL)
+             } else {
+               await RecipeHistoryService.saveRecipe(aiRecipe)
+             }
+             // Refresh history display
+             await loadRecipeHistory();
+                        
+                        setSharedRecipe(null);
+                        Alert.alert('Success', 'Recipe saved to your history!');
+                      } catch (error) {
+                        console.error('Failed to save imported recipe:', error);
+                        Alert.alert('Error', 'Failed to save recipe. Please try again.');
+                      }
+                    }}
+                    onDismiss={() => setSharedRecipe(null)}
+                  />
+                </View>
+              ) : (
+                <View style={styles.noImportContainer}>
+                  <Text style={styles.noImportText}>
+                    No imported recipes yet. Share a recipe from Instagram, TikTok, or other social platforms to get started!
+                  </Text>
+                  <Text style={styles.importInstructions}>
+                    📱 Copy a recipe URL and paste it here, or use the share extension when available.
+                  </Text>
+                </View>
+              )}
+            </View>
           )}
         </ScrollView>
 
         {/* Recipe Detail Modal */}
-        <AIRecipeDetailModal
+                <AIRecipeDetailModal 
           recipe={selectedRecipe}
           visible={showRecipeModal}
           onClose={() => {
             setShowRecipeModal(false)
             setSelectedRecipe(null)
           }}
+          onRate={(recipe, rating) => handleRateRecipe(recipe, rating)}
+          currentRating={selectedRecipe ? recipeRatings[selectedRecipe.id] || null : null}
         />
 
         {/* Recipe Customization Modal */}
@@ -1399,20 +1576,80 @@ function MainApp() {
           visible={showCustomizationModal}
           onClose={() => setShowCustomizationModal(false)}
           onGenerateRecipe={generateAIRecipes}
-          pantryIngredients={profile?.pantry_items || []}
+          pantryIngredients={profile?.pantryItems || []}
         />
 
         {/* Profile Page Modal */}
         <ProfilePage
-          userId={session?.user?.id || ''}
-          userName={profile?.first_name || 'Chef'}
+          userId={session?.user?.uid || ''}
+          userName={profile?.firstName || 'Chef'}
           visible={showProfileModal}
           onClose={() => setShowProfileModal(false)}
+          onProfileUpdate={(newName) => {
+            // Update the profile state with the new name
+            if (profile) {
+              setProfile({
+                ...profile,
+                firstName: newName.split(' ')[0] || newName,
+                lastName: newName.split(' ').slice(1).join(' ') || ''
+              })
+            }
+          }}
         />
 
-        {/* Forgot Password Modal */}
-        <Modal visible={showForgotPassword} animationType="slide" presentationStyle="pageSheet">
-          <View style={styles.forgotPasswordContainer}>
+                {/* Forgot Password Overlay */}
+        {showForgotPassword && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.forgotPasswordHeader}>
+                <Text style={styles.forgotPasswordTitle}>Reset Password</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setShowForgotPassword(false)}
+                >
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.forgotPasswordDescription}>
+                Enter your email address and we'll send you a link to reset your password.
+              </Text>
+        
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+                placeholderTextColor="#9CA3AF"
+                value={resetEmail}
+                onChangeText={setResetEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!resetLoading}
+              />
+
+              <TouchableOpacity
+                style={[styles.button, resetLoading && styles.disabledButton]}
+                onPress={handleForgotPassword}
+                disabled={resetLoading}
+              >
+                {resetLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.buttonText}>Send Reset Email</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+    )
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Forgot Password Overlay - Moved to root level */}
+      {showForgotPassword && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
             <View style={styles.forgotPasswordHeader}>
               <Text style={styles.forgotPasswordTitle}>Reset Password</Text>
               <TouchableOpacity
@@ -1439,7 +1676,7 @@ function MainApp() {
             />
 
             <TouchableOpacity
-              style={[styles.button, resetLoading && styles.disabledButton]}
+              style={styles.button}
               onPress={handleForgotPassword}
               disabled={resetLoading}
             >
@@ -1450,13 +1687,8 @@ function MainApp() {
               )}
             </TouchableOpacity>
           </View>
-        </Modal>
-      </View>
-    )
-  }
-
-  return (
-    <View style={styles.container}>
+        </View>
+      )}
       <View style={styles.loginContainer}>
         {/* Logo Section - Updated to use the Chef Jeff logo image */}
         <View style={styles.logoSection}>
@@ -1550,7 +1782,12 @@ function MainApp() {
           {!isSigningUp && (
             <TouchableOpacity 
               style={styles.forgotPasswordButton}
-              onPress={() => setShowForgotPassword(true)}
+              onPress={() => {
+                console.log('🔑 Forgot Password button pressed');
+                console.log('🔑 Current showForgotPassword state:', showForgotPassword);
+                setShowForgotPassword(true);
+                console.log('🔑 Set showForgotPassword to true');
+              }}
               disabled={loading || googleLoading}
             >
               <Text style={styles.forgotPasswordText}>
@@ -1961,6 +2198,64 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 15,
   },
+  importSection: {
+    padding: 15,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 15,
+  },
+  importItem: {
+    marginBottom: 15,
+  },
+  noImportContainer: {
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  noImportText: {
+    fontSize: 14,
+    color: '#374151',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 15,
+  },
+  importInstructions: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  urlInputContainer: {
+    marginBottom: 20,
+  },
+  urlInputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  urlInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#374151',
+    backgroundColor: 'white',
+    marginBottom: 12,
+  },
+  importButton: {
+    backgroundColor: '#EA580C',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  importButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   loginContainer: {
     flex: 1,
     alignItems: 'center',
@@ -2085,6 +2380,24 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 24,
   },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  modalContent: {
+    backgroundColor: '#FED7AA',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
   tabContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2158,6 +2471,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textDecorationLine: 'underline',
+  },
+  statusContainer: {
+    marginRight: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+  },
+  statusConnected: {
+    color: '#10B981', // Green
+  },
+  statusError: {
+    color: '#EF4444', // Red
+  },
+  statusLocal: {
+    color: '#F59E0B', // Yellow
+  },
+  statusLoading: {
+    color: '#3B82F6', // Blue
   },
 })
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert } from 'react-native'
 import { AIRecipe } from '../lib/aiRecipeService'
 import { ChefHatIcon } from './ChefHatIcon'
 
@@ -27,12 +27,22 @@ export const AIRecipeCard: React.FC<AIRecipeCardProps> = ({
     setCurrentRating(initialRating)
   }, [initialRating])
 
+  // Debug logging for like/dislike buttons
+  useEffect(() => {
+    if (onRate && userId) {
+      console.log('🔍 AIRecipeCard Debug:', { onRate: !!onRate, userId, recipeTitle: recipe.title })
+    }
+  }, [onRate, userId, recipe.title])
+
   const handleRate = (rating: 'like' | 'dislike') => {
+    console.log('🎯 handleRate called:', { rating, currentRating, recipeTitle: recipe.title })
+    
     // If clicking the same rating, remove it (toggle off)
     const newRating = currentRating === rating ? null : rating
     setCurrentRating(newRating)
     
     if (onRate && newRating) {
+      console.log('📞 Calling onRate callback:', { newRating, recipeTitle: recipe.title })
       onRate(recipe, newRating)
     }
   }
@@ -191,6 +201,21 @@ export const AIRecipeCard: React.FC<AIRecipeCardProps> = ({
           >
             <Text style={styles.viewButtonText}>View Recipe</Text>
           </TouchableOpacity>
+          {((recipe as any).source === 'imported' && (recipe as any).sourceURL) && (
+            <TouchableOpacity 
+              style={[styles.viewButton, { backgroundColor: '#6B7280' }]}
+              onPress={async () => {
+                try {
+                  const url = (recipe as any).sourceURL as string
+                  const can = await Linking.canOpenURL(url)
+                  if (can) await Linking.openURL(url)
+                  else Alert.alert('Cannot Open', 'Install the app for this link to watch the video.')
+                } catch {}
+              }}
+            >
+              <Text style={styles.viewButtonText}>Watch Video</Text>
+            </TouchableOpacity>
+          )}
           
           {/* Like/Dislike buttons */}
           {onRate && userId && (

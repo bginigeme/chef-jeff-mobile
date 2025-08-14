@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "production": "chef-jeff-app"
+  },
+  "targets": {},
+  "etags": {}
+}
